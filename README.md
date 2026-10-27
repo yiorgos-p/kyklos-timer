@@ -32,11 +32,10 @@ Anchor is based on [Cloud](https://github.com/YYUUGGOO/Cloud) by David.
 2. Allow Xcode to resolve the Swift package dependency.
 3. Select the `Timer` scheme and build or run the app.
 
-To build from the command line without a developer account:
+No Apple developer account is needed: the app is signed to run locally. To build from the command line:
 
 ```sh
-xcodebuild -project Timer.xcodeproj -scheme Timer -configuration Release -derivedDataPath build \
-  CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" DEVELOPMENT_TEAM="" build
+xcodebuild -project Timer.xcodeproj -scheme Timer -configuration Release -derivedDataPath build build
 ```
 
 The app ends up in `build/Build/Products/Release/Anchor.app`.
