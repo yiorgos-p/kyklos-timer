@@ -201,6 +201,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     private func applySettings() {
         updateGlobalShortcut()
         updateStatusBarTitle()
+        updateAppearance()
 
         let showInDock = UserDefaults.standard.object(forKey: "showInDock") as? Bool ?? true
 
@@ -219,6 +220,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 NSApp.activate(ignoringOtherApps: true)
                 NSApp.windows.filter(\.isVisible).forEach { $0.orderFrontRegardless() }
             }
+        }
+    }
+
+    /// "system" follows macOS Light/Dark (including Auto), or the user can pin either one.
+    private func updateAppearance() {
+        let appearance: NSAppearance?
+
+        switch UserDefaults.standard.string(forKey: "appearance") {
+        case "light":
+            appearance = NSAppearance(named: .aqua)
+        case "dark":
+            appearance = NSAppearance(named: .darkAqua)
+        default:
+            appearance = nil
+        }
+
+        if NSApp.appearance?.name != appearance?.name {
+            NSApp.appearance = appearance
+            // The popover otherwise takes its look from the menu bar, not the app.
+            popover.appearance = appearance
         }
     }
 

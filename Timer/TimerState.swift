@@ -21,8 +21,17 @@ enum TimerPhase: CaseIterable {
     case shortBreak
     case longBreak
 
-    /// A long break comes after every this many focus sessions.
-    static let focusSessionsPerLongBreak = 4
+    /// The choices offered in Settings for how many focus sessions come before a long break.
+    static let sessionsPerLongBreakRange = 2...8
+
+    /// A long break comes after every this many focus sessions, shown as the dots above the timer.
+    static var focusSessionsPerLongBreak: Int {
+        let defaults = UserDefaults.standard
+        let saved = defaults.object(forKey: "sessionsPerLongBreak") == nil
+            ? 4
+            : defaults.integer(forKey: "sessionsPerLongBreak")
+        return min(sessionsPerLongBreakRange.upperBound, max(sessionsPerLongBreakRange.lowerBound, saved))
+    }
 
     var title: String {
         switch self {

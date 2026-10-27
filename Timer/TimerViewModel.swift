@@ -29,6 +29,11 @@ final class TimerViewModel: ObservableObject {
     private var activity: NSObjectProtocol?
     private var observers: [NSObjectProtocol] = []
     private var audioPlayer: AVAudioPlayer?
+    /// The minute of overtime the alarm last rang for, so each minute rings at most once.
+    private var lastAlarmMinute = 0
+
+    /// How long the alarm keeps ringing in overtime, so it doesn't go on all day if nobody is at the Mac.
+    private static let alarmRepeatMinutes = 10
 
     init(duration: Double) {
         self.timerDuration = duration
@@ -215,6 +220,7 @@ final class TimerViewModel: ObservableObject {
 
             if overtime != shown {
                 overtime = shown
+                repeatAlarmIfDue()
             }
 
             untilNextChange = .seconds(shown + 1) - over
@@ -254,6 +260,7 @@ final class TimerViewModel: ObservableObject {
         endActivity()
         remainingTime = 0
         overtime = 0
+        lastAlarmMinute = 0
         timerState = .finished
 
         if phase == .focus {
@@ -289,7 +296,7 @@ final class TimerViewModel: ObservableObject {
 
     // MARK: - Today's sessions
 
-    private static var todayKey: String {
+    static var todayKey: String {
         let today = Calendar.current.dateComponents([.year, .month, .day], from: Date())
         return "\(today.year ?? 0)-\(today.month ?? 0)-\(today.day ?? 0)"
     }
@@ -303,11 +310,19 @@ final class TimerViewModel: ObservableObject {
 
     private func recordFocusSession() {
         loadTodaysSessions()
-        completedFocusToday += 1
+        saveTodaysSessions(completedFocusToday + 1)
+    }
+
+    func resetTodaysSessions() {
+        saveTodaysSessions(0)
+    }
+
+    private func saveTodaysSessions(_ count: Int) {
+        completedFocusToday = count
 
         let defaults = UserDefaults.standard
         defaults.set(Self.todayKey, forKey: "sessionsDay")
-        defaults.set(completedFocusToday, forKey: "sessionsToday")
+        defaults.set(count, forKey: "sessionsToday")
     }
 
     // MARK: - Alarm
@@ -326,6 +341,23 @@ final class TimerViewModel: ObservableObject {
     func playAlarmSound() {
         audioPlayer?.currentTime = 0
         audioPlayer?.play()
+    }
+
+    /// Rings again at each full minute of overtime, for the first few minutes, unless turned off in Settings.
+    private func repeatAlarmIfDue() {
+        let minute = overtime / 60
+
+        guard minute > lastAlarmMinute else {
+            return
+        }
+
+        lastAlarmMinute = minute
+
+        // After a long sleep the overtime jumps far past the limit; stay quiet then rather than ring once on wake.
+        let enabled = UserDefaults.standard.object(forKey: "repeatAlarm") as? Bool ?? true
+        if enabled, minute <= Self.alarmRepeatMinutes {
+            playAlarmSound()
+        }
     }
 
     // MARK: - Notifications

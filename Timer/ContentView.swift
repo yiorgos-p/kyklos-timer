@@ -16,6 +16,13 @@ struct ContentView: View {
     @AppStorage("useMouseControls") private var useMouseControls = false
     @AppStorage("zenMode") private var zenMode = false
     @AppStorage("keepWindowOnTop") private var keepWindowOnTop = false
+    // Read through TimerPhase so the value is clamped; stored here only so the dots redraw when it changes.
+    @AppStorage("sessionsPerLongBreak") private var savedSessionsPerLongBreak = 4
+
+    private var sessionsPerLongBreak: Int {
+        _ = savedSessionsPerLongBreak
+        return TimerPhase.focusSessionsPerLongBreak
+    }
     @FocusState private var taskFieldFocused: Bool
     @Environment(\.openSettings) private var openSettings
 
@@ -95,8 +102,14 @@ struct ContentView: View {
 
                 SessionDots(
                     completed: viewModel.completedFocusToday,
-                    perCycle: TimerPhase.focusSessionsPerLongBreak
+                    perCycle: sessionsPerLongBreak
                 )
+                .contextMenu {
+                    Button("Reset Today's Sessions") {
+                        viewModel.resetTodaysSessions()
+                    }
+                    .disabled(viewModel.completedFocusToday == 0)
+                }
             }
 
             timerDisplay
@@ -514,7 +527,7 @@ private struct SessionDots: View {
                     .monospacedDigit()
             }
         }
-        .help("\(completed) focus session\(completed == 1 ? "" : "s") finished today. A long break comes after every \(perCycle).")
+        .help("\(completed) focus session\(completed == 1 ? "" : "s") finished today. A long break comes after every \(perCycle). Right-click to reset.")
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(completed) focus sessions finished today")
     }

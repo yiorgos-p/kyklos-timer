@@ -11,6 +11,11 @@ struct TimerSettingsView: View {
     @AppStorage("globalShortcutEnabled") private var globalShortcutEnabled = true
     @AppStorage("showInDock") private var showInDock = true
     @AppStorage("menuBarStyle") private var menuBarStyle = "time"
+    @AppStorage("appearance") private var appearance = "system"
+    @AppStorage("repeatAlarm") private var repeatAlarm = true
+    @AppStorage("sessionsPerLongBreak") private var sessionsPerLongBreak = 4
+    @AppStorage("sessionsToday") private var sessionsToday = 0
+    @AppStorage("sessionsDay") private var sessionsDay = ""
     @State private var selectedTab = SettingsTab.general
     @State private var notificationsDenied = false
 
@@ -196,6 +201,37 @@ struct TimerSettingsView: View {
                     .padding(.leading, 50)
 
                 HStack(spacing: 12) {
+                    Image(systemName: "circle.lefthalf.filled")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Appearance")
+                            .font(.body)
+
+                        Text("Auto follows your Mac's Light or Dark setting.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Picker("Appearance", selection: $appearance) {
+                        Text("Auto").tag("system")
+                        Text("Light").tag("light")
+                        Text("Dark").tag("dark")
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 180)
+                }
+                .padding(14)
+
+                Divider()
+                    .padding(.leading, 50)
+
+                HStack(spacing: 12) {
                     Image(systemName: "computermouse")
                         .font(.system(size: 17, weight: .medium))
                         .foregroundStyle(.secondary)
@@ -246,6 +282,31 @@ struct TimerSettingsView: View {
                     Toggle("Zen Mode", isOn: $zenMode)
                         .labelsHidden()
                         .help("Hide setup controls while a timer is active.")
+                }
+                .padding(14)
+
+                Divider()
+                    .padding(.leading, 50)
+
+                HStack(spacing: 12) {
+                    Image(systemName: "bell.badge")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Repeat Alarm")
+                            .font(.body)
+
+                        Text("When time's up, ring again every minute until you start the next phase or stop, for up to 10 minutes.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Toggle("Repeat Alarm", isOn: $repeatAlarm)
+                        .labelsHidden()
                 }
                 .padding(14)
 
@@ -382,6 +443,83 @@ struct TimerSettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .padding(.top, 2)
+
+            sessionsCard
+                .padding(.top, 8)
+        }
+    }
+
+    private var sessionsDoneToday: Int {
+        sessionsDay == TimerViewModel.todayKey ? sessionsToday : 0
+    }
+
+    private var sessionsCard: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Image(systemName: "circle.grid.2x1.fill")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Sessions Before a Long Break")
+                        .font(.body)
+
+                    Text("One dot per focus session. Once they're all filled, the next break is a long one.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Text("\(TimerPhase.focusSessionsPerLongBreak)")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+
+                Stepper(
+                    "Sessions Before a Long Break",
+                    value: $sessionsPerLongBreak,
+                    in: TimerPhase.sessionsPerLongBreakRange
+                )
+                .labelsHidden()
+            }
+            .padding(14)
+
+            Divider()
+                .padding(.leading, 50)
+
+            HStack(spacing: 12) {
+                Image(systemName: "checkmark.circle")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Finished Today: \(sessionsDoneToday)")
+                        .font(.body)
+                        .monospacedDigit()
+
+                    Text("Starts again from zero each day. You can also right-click the dots to reset.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button("Reset") {
+                    AppDelegate.shared?.viewModel.resetTodaysSessions()
+                }
+                .disabled(sessionsDoneToday == 0)
+            }
+            .padding(14)
+        }
+        .background {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(.primary.opacity(0.08))
         }
     }
 
