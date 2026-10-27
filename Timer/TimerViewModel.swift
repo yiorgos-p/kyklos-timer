@@ -300,8 +300,8 @@ final class TimerViewModel: ObservableObject {
     }
 
     private func finish() {
-        // Keep endInstant so overtime can be counted from the exact moment the timer ran out.
-        endActivity()
+        // Keep endInstant so overtime can be counted from the exact moment the timer ran out, and keep the activity
+        // so App Nap can't make the repeat alarm or the overtime count late. Leaving overtime ends both.
         remainingTime = 0
         overtime = 0
         lastAlarmMinute = 0

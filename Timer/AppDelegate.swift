@@ -537,6 +537,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         minimalPanel = nil
     }
 
+    /// The pill's close button. It comes back when the next session starts; the menu bar or Dock opens the window.
+    func closeMinimalTimer() {
+        discardMinimalTimer()
+    }
+
     /// The pill doesn't take the keyboard by itself; this hands it over while the minutes are typed.
     func makeMinimalTimerKey() {
         minimalPanel?.makeKey()
