@@ -430,7 +430,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Timer/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Focus Timer";
+				INFOPLIST_KEY_CFBundleDisplayName = Anchor;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -441,7 +441,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14;
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Pomodoro.Timer;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = Anchor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 			};
@@ -462,7 +462,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Timer/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Focus Timer";
+				INFOPLIST_KEY_CFBundleDisplayName = Anchor;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -473,7 +473,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14;
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Pomodoro.Timer;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = Anchor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 			};

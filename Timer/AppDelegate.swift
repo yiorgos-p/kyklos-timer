@@ -2,6 +2,7 @@ import Cocoa
 import SwiftUI
 import Combine
 import UserNotifications
+import Carbon.HIToolbox
 
 class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     var statusItem: NSStatusItem!
@@ -11,6 +12,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     private var popoverResizeTimer: Timer?
     var cancellables: Set<AnyCancellable> = []
     var mainWindowController: NSWindowController?
+    private var globalShortcut: GlobalHotKey?
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         if Bundle.main.bundleURL.pathExtension == "app" {
@@ -18,11 +20,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
 
         // Initialize the timer with the saved Focus preset.
-        let defaults = UserDefaults.standard
-        let focusDuration = defaults.object(forKey: "standardTimer") == nil
-            ? 25
-            : defaults.double(forKey: "standardTimer")
-        viewModel = TimerViewModel(duration: focusDuration)
+        viewModel = TimerViewModel(duration: Double(TimerPhase.focus.minutes))
 
         // Create the status bar item
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -46,11 +44,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         popover.behavior = .transient
 
         // Keep the menu bar title in sync with the timer
-        viewModel.$remainingTime
-            .combineLatest(viewModel.$timerState)
+        Publishers.CombineLatest4(
+            viewModel.$remainingTime,
+            viewModel.$timerState,
+            viewModel.$overtime,
+            viewModel.$task
+        )
+        .receive(on: RunLoop.main)
+        .sink { [weak self] _ in
+            self?.updateStatusBarTitle()
+        }
+        .store(in: &cancellables)
+
+        // Turn the global shortcut on or off when it is changed in Settings.
+        updateGlobalShortcut()
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                self?.updateStatusBarTitle()
+                self?.updateGlobalShortcut()
             }
             .store(in: &cancellables)
 
@@ -98,19 +109,46 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
     func updateStatusBarTitle() {
         if let button = statusItem.button {
-            var title = viewModel.timeString(from: viewModel.remainingTime)
+            var title = viewModel.displayTime
 
             if viewModel.timerState == .paused {
                 title = "⏸ " + title
             }
 
+            // While a session is on, show what it's for, so a glance at the menu bar is a reminder.
+            let task = viewModel.task.trimmingCharacters(in: .whitespaces)
+            if viewModel.timerState != .stopped, !task.isEmpty {
+                title += " · " + (task.count > 24 ? String(task.prefix(23)) + "…" : task)
+            }
+
             // Create an attributed string with monospace font
-            let attributes: [NSAttributedString.Key: Any] = [
+            var attributes: [NSAttributedString.Key: Any] = [
                 .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
             ]
+            if viewModel.timerState == .finished {
+                attributes[.foregroundColor] = NSColor.systemOrange
+            }
             let attributedTitle = NSAttributedString(string: title, attributes: attributes)
 
             button.attributedTitle = attributedTitle
+        }
+    }
+
+    // MARK: - Global shortcut
+
+    /// Control-Option-P starts, pauses or resumes the timer from any app.
+    private func updateGlobalShortcut() {
+        let enabled = UserDefaults.standard.object(forKey: "globalShortcutEnabled") as? Bool ?? true
+
+        if enabled, globalShortcut == nil {
+            globalShortcut = GlobalHotKey(
+                keyCode: UInt32(kVK_ANSI_P),
+                modifiers: UInt32(controlKey | optionKey)
+            ) { [weak self] in
+                self?.viewModel.toggleTimer()
+            }
+        } else if !enabled {
+            globalShortcut = nil
         }
     }
 
@@ -241,5 +279,62 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         popoverResizeTimer?.invalidate()
         popoverResizeTimer = nil
         popover?.animates = true
+    }
+}
+
+// MARK: - Global hot key
+
+/// A system-wide keyboard shortcut. Carbon's hot key API works inside the sandbox and needs no Accessibility permission.
+private final class GlobalHotKey {
+    private var hotKeyRef: EventHotKeyRef?
+    private var handlerRef: EventHandlerRef?
+    private let action: () -> Void
+
+    init?(keyCode: UInt32, modifiers: UInt32, action: @escaping () -> Void) {
+        self.action = action
+
+        var eventType = EventTypeSpec(
+            eventClass: OSType(kEventClassKeyboard),
+            eventKind: UInt32(kEventHotKeyPressed)
+        )
+        let handlerStatus = InstallEventHandler(
+            GetApplicationEventTarget(),
+            { _, _, userData in
+                guard let userData else {
+                    return OSStatus(eventNotHandledErr)
+                }
+                Unmanaged<GlobalHotKey>.fromOpaque(userData).takeUnretainedValue().action()
+                return noErr
+            },
+            1,
+            &eventType,
+            Unmanaged.passUnretained(self).toOpaque(),
+            &handlerRef
+        )
+
+        // "ANCR"
+        let hotKeyID = EventHotKeyID(signature: OSType(0x414E_4352), id: 1)
+        let registerStatus = RegisterEventHotKey(
+            keyCode,
+            modifiers,
+            hotKeyID,
+            GetApplicationEventTarget(),
+            0,
+            &hotKeyRef
+        )
+
+        guard handlerStatus == noErr, registerStatus == noErr else {
+            // Another app already owns this shortcut.
+            return nil
+        }
+    }
+
+    deinit {
+        if let hotKeyRef {
+            UnregisterEventHotKey(hotKeyRef)
+        }
+        if let handlerRef {
+            RemoveEventHandler(handlerRef)
+        }
     }
 }

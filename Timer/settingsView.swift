@@ -7,6 +7,7 @@ struct TimerSettingsView: View {
     @AppStorage("longBreak") private var longBreak = 10
     @AppStorage("useMouseControls") private var useMouseControls = false
     @AppStorage("zenMode") private var zenMode = false
+    @AppStorage("globalShortcutEnabled") private var globalShortcutEnabled = true
     @State private var selectedTab = SettingsTab.general
 
     var body: some View {
@@ -148,7 +149,7 @@ struct TimerSettingsView: View {
                         Text("Timer Controls")
                             .font(.body)
 
-                        Text("Choose how you start, pause, and reset the timer. \"Mouse\" enables to controll the timer with mouseclicks. Single click to start and pause, tripple click to reset the timer")
+                        Text("Choose how you start, pause, and reset the timer. With Mouse, click the timer once to start or pause it and triple-click to reset it.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -189,6 +190,32 @@ struct TimerSettingsView: View {
                     Toggle("Zen Mode", isOn: $zenMode)
                         .labelsHidden()
                         .help("Hide setup controls while a timer is active.")
+                }
+                .padding(14)
+
+                Divider()
+                    .padding(.leading, 50)
+
+                HStack(spacing: 12) {
+                    Image(systemName: "keyboard")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Global Shortcut ⌃⌥P")
+                            .font(.body)
+
+                        Text("Start, pause, or resume the timer from any app.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Toggle("Global Shortcut", isOn: $globalShortcutEnabled)
+                        .labelsHidden()
+                        .help("Press Control-Option-P anywhere to start or pause the timer.")
                 }
                 .padding(14)
             }
@@ -250,7 +277,7 @@ struct TimerSettingsView: View {
 
     private var aboutSection: some View {
         SettingsSection(
-            title: "About Cloud",
+            title: "About Anchor",
             systemImage: "info.circle"
         ) {
             VStack(spacing: 18) {
@@ -261,7 +288,7 @@ struct TimerSettingsView: View {
                     .accessibilityHidden(true)
 
                 VStack(spacing: 4) {
-                    Text("Focus Timer")
+                    Text("Anchor")
                         .font(.title2)
                         .fontWeight(.semibold)
 
@@ -272,7 +299,7 @@ struct TimerSettingsView: View {
                 }
 
                 Text(
-                    "A free, minimal Pomodoro timer for macOS, in its own window and in the menu bar. Focus Timer includes custom presets and focused timer controls—without ads or data collection."
+                    "A free, minimal Pomodoro timer for macOS, in its own window and in the menu bar. Anchor includes custom presets, a focus and break rhythm, and a reminder of what you are working on—without ads or data collection."
                 )
                 .font(.body)
                 .foregroundStyle(.secondary)
@@ -294,7 +321,7 @@ struct TimerSettingsView: View {
                     )!
                 ) {
                     Label(
-                        "View Source on GitHub",
+                        "Based on Cloud by David",
                         systemImage: "arrow.up.right.square"
                     )
                 }

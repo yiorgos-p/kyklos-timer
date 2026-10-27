@@ -69,13 +69,14 @@ struct ContentView: View {
 
             LinearGradient(
                 colors: [
-                    Color.accentColor.opacity(0.10),
+                    ringTint.opacity(0.10),
                     Color.clear,
                     Color.primary.opacity(0.025)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+            .animation(.easeInOut(duration: 0.4), value: ringTint)
         }
         .ignoresSafeArea()
     }
@@ -83,21 +84,23 @@ struct ContentView: View {
     // MARK: - Timer header
 
     private var timerHeader: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 10) {
             HStack {
-                Label(timerStateTitle, systemImage: timerStateIcon)
+                Label(viewModel.phase.title, systemImage: viewModel.phase.systemImage)
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(viewModel.phase.tint)
 
                 Spacer()
 
-                Text("\(Int(viewModel.timerDuration)) MIN")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.tertiary)
-                    .monospacedDigit()
+                SessionDots(
+                    completed: viewModel.completedFocusToday,
+                    perCycle: TimerPhase.focusSessionsPerLongBreak
+                )
             }
 
             timerDisplay
+
+            taskField
         }
         .padding(18)
         .modifier(
@@ -119,32 +122,61 @@ struct ContentView: View {
                     viewModel.resetTimer()
                 }
             ) {
-                timerText
+                timerRing
             }
         } else {
-            timerText
+            timerRing
         }
     }
 
-    private var timerText: some View {
-        Text(viewModel.timeString(from: viewModel.remainingTime))
-            .font(
-                .system(
-                    size: 54,
-                    weight: .medium,
-                    design: .rounded
-                )
-            )
-            .monospacedDigit()
-            .contentTransition(.numericText())
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
-            .accessibilityLabel("Remaining time")
-            .accessibilityValue(
-                viewModel.timeString(
-                    from: viewModel.remainingTime
-                )
-            )
+    private var timerRing: some View {
+        ProgressRing(
+            progress: viewModel.timerState == .finished ? 1 : viewModel.progress,
+            tint: ringTint,
+            // Drain smoothly between ticks while running; jump straight to the new value otherwise.
+            animation: viewModel.timerState == .running
+                ? .linear(duration: 1)
+                : .snappy(duration: 0.3)
+        ) {
+            VStack(spacing: 2) {
+                Text(viewModel.displayTime)
+                    .font(
+                        .system(
+                            size: 46,
+                            weight: .medium,
+                            design: .rounded
+                        )
+                    )
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .foregroundStyle(viewModel.timerState == .finished ? .orange : .primary)
+
+                Text(statusCaption)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(viewModel.timerState == .finished ? .orange : .secondary)
+                    .monospacedDigit()
+            }
+        }
+        .frame(width: 180, height: 180)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Remaining time")
+        .accessibilityValue("\(viewModel.displayTime), \(statusCaption)")
+    }
+
+    private var taskField: some View {
+        TextField("What are you working on?", text: $viewModel.task)
+            .textFieldStyle(.plain)
+            .multilineTextAlignment(.center)
+            .font(.system(size: 14, weight: .medium))
+            .lineLimit(1)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background {
+                Capsule()
+                    .fill(Color.primary.opacity(0.05))
+            }
+            .accessibilityLabel("Current task")
     }
 
     // MARK: - Duration
@@ -178,7 +210,8 @@ struct ContentView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
-            .tint(.accentColor)
+            .labelsHidden()
+            .tint(viewModel.phase.tint)
             .onChange(of: viewModel.timerDuration) { _, _ in
                 guard
                     viewModel.timerState == .stopped ||
@@ -209,23 +242,13 @@ struct ContentView: View {
                 GlassEffectContainer(spacing: 10) {
                     HStack(spacing: 10) {
                         Button(action: viewModel.toggleTimer) {
-                            Label(
-                                primaryActionTitle,
-                                systemImage: primaryButtonIcon
-                            )
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 34)
+                            primaryButtonLabel
                         }
                         .buttonStyle(.glassProminent)
                         .keyboardShortcut(.space, modifiers: [])
 
                         Button(action: viewModel.resetTimer) {
-                            Label(
-                                "Reset",
-                                systemImage: "arrow.counterclockwise"
-                            )
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 34)
+                            secondaryButtonLabel
                         }
                         .buttonStyle(.glass)
                     }
@@ -233,28 +256,34 @@ struct ContentView: View {
             } else {
                 HStack(spacing: 10) {
                     Button(action: viewModel.toggleTimer) {
-                        Label(
-                            primaryActionTitle,
-                            systemImage: primaryButtonIcon
-                        )
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 34)
+                        primaryButtonLabel
                     }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.space, modifiers: [])
 
                     Button(action: viewModel.resetTimer) {
-                        Label(
-                            "Reset",
-                            systemImage: "arrow.counterclockwise"
-                        )
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 34)
+                        secondaryButtonLabel
                     }
                     .buttonStyle(.bordered)
                 }
             }
         }
+    }
+
+    private var primaryButtonLabel: some View {
+        Label(primaryActionTitle, systemImage: primaryButtonIcon)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity)
+            .frame(height: 34)
+    }
+
+    private var secondaryButtonLabel: some View {
+        Label(
+            viewModel.timerState == .finished ? "Stop" : "Reset",
+            systemImage: viewModel.timerState == .finished ? "stop.fill" : "arrow.counterclockwise"
+        )
+        .frame(maxWidth: .infinity)
+        .frame(height: 34)
     }
 
     // MARK: - Presets
@@ -266,31 +295,15 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 9) {
-                PresetButton(
-                    title: "Focus",
-                    minutes: standardTimer,
-                    systemImage: "brain.head.profile",
-                    isSelected: selectedPreset == standardTimer
-                ) {
-                    applyPreset(standardTimer)
-                }
-
-                PresetButton(
-                    title: "Short",
-                    minutes: shortBreak,
-                    systemImage: "cup.and.saucer.fill",
-                    isSelected: selectedPreset == shortBreak
-                ) {
-                    applyPreset(shortBreak)
-                }
-
-                PresetButton(
-                    title: "Long",
-                    minutes: longBreak,
-                    systemImage: "sparkles",
-                    isSelected: selectedPreset == longBreak
-                ) {
-                    applyPreset(longBreak)
+                ForEach(TimerPhase.allCases, id: \.self) { phase in
+                    PresetButton(
+                        title: phase.shortTitle,
+                        minutes: presetMinutes(for: phase),
+                        systemImage: phase.systemImage,
+                        isSelected: viewModel.phase == phase
+                    ) {
+                        applyPreset(phase)
+                    }
                 }
             }
         }
@@ -305,7 +318,7 @@ struct ContentView: View {
             } label: {
                 Image(systemName: "power")
             }
-            .help("Quit Timer")
+            .help("Quit Anchor")
             .modifier(SecondaryGlassButtonModifier())
 
             Spacer()
@@ -342,7 +355,7 @@ struct ContentView: View {
                 SettingsLink {
                     Label("Settings", systemImage: "gearshape")
                 }
-                .help("Open Timer Settings")
+                .help("Open Anchor Settings")
                 .modifier(SecondaryGlassButtonModifier())
             }
         }
@@ -355,47 +368,26 @@ struct ContentView: View {
         !zenMode || viewModel.timerState != .running
     }
 
-    private var selectedPreset: Int? {
-        let duration = Int(viewModel.timerDuration.rounded())
-
-        if duration == standardTimer {
-            return standardTimer
-        }
-
-        if duration == shortBreak {
-            return shortBreak
-        }
-
-        if duration == longBreak {
-            return longBreak
-        }
-
-        return nil
+    private var ringTint: Color {
+        viewModel.timerState == .finished ? .orange : viewModel.phase.tint
     }
 
-    private var timerStateTitle: String {
+    private var statusCaption: String {
         switch viewModel.timerState {
         case .running:
-            return "Timer Running"
+            guard let endDate = viewModel.endDate else {
+                return ""
+            }
+            return "ends \(endDate.formatted(date: .omitted, time: .shortened))"
 
         case .paused:
-            return "Timer Paused"
+            return "paused"
 
         case .stopped:
-            return "Ready to Focus"
-        }
-    }
+            return "\(Int(viewModel.timerDuration)) min"
 
-    private var timerStateIcon: String {
-        switch viewModel.timerState {
-        case .running:
-            return "circle.fill"
-
-        case .paused:
-            return "pause.circle.fill"
-
-        case .stopped:
-            return "circle.dotted"
+        case .finished:
+            return "time's up"
         }
     }
 
@@ -404,11 +396,11 @@ struct ContentView: View {
         case .running:
             return "pause.fill"
 
-        case .paused:
+        case .paused, .stopped:
             return "play.fill"
 
-        case .stopped:
-            return "play.fill"
+        case .finished:
+            return viewModel.nextPhase.systemImage
         }
     }
 
@@ -422,19 +414,102 @@ struct ContentView: View {
 
         case .stopped:
             return "Start"
+
+        case .finished:
+            return "Start \(viewModel.nextPhase.title)"
+        }
+    }
+
+    private func presetMinutes(for phase: TimerPhase) -> Int {
+        switch phase {
+        case .focus:
+            return standardTimer
+        case .shortBreak:
+            return shortBreak
+        case .longBreak:
+            return longBreak
         }
     }
 
     // MARK: - Actions
 
-    private func applyPreset(_ minutes: Int) {
+    private func applyPreset(_ phase: TimerPhase) {
         withAnimation(.snappy(duration: 0.25)) {
-            viewModel.setPresetTimer(minutes: minutes)
+            viewModel.setPhase(phase)
         }
     }
 
     private var appDelegate: AppDelegate? {
         NSApp.delegate as? AppDelegate
+    }
+}
+
+// MARK: - Progress ring
+
+private struct ProgressRing<Content: View>: View {
+    let progress: Double
+    let tint: Color
+    let animation: Animation
+    @ViewBuilder let content: Content
+
+    private let lineWidth: CGFloat = 10
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(tint.opacity(0.15), lineWidth: lineWidth)
+
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(
+                    tint,
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+                .animation(animation, value: progress)
+
+            content
+        }
+        .padding(lineWidth / 2)
+    }
+}
+
+// MARK: - Session dots
+
+/// Today's finished focus sessions: one dot per session in the current round, filling up toward a long break.
+private struct SessionDots: View {
+    let completed: Int
+    let perCycle: Int
+
+    private var filledInCycle: Int {
+        guard completed > 0 else {
+            return 0
+        }
+
+        let remainder = completed % perCycle
+        return remainder == 0 ? perCycle : remainder
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            HStack(spacing: 4) {
+                ForEach(0..<perCycle, id: \.self) { index in
+                    Circle()
+                        .fill(index < filledInCycle ? Color.accentColor : Color.primary.opacity(0.15))
+                        .frame(width: 7, height: 7)
+                }
+            }
+
+            if completed > 0 {
+                Text("\(completed) today")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.tertiary)
+                    .monospacedDigit()
+            }
+        }
+        .help("\(completed) focus session\(completed == 1 ? "" : "s") finished today. A long break comes after every \(perCycle).")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(completed) focus sessions finished today")
     }
 }
 
