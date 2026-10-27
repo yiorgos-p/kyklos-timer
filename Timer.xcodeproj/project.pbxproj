@@ -10,13 +10,11 @@
 		632108442C53E8B7002D790E /* TimerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632108432C53E8B7002D790E /* TimerState.swift */; };
 		63313B1C2C40276C0016C932 /* TimerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63313B1B2C40276C0016C932 /* TimerViewModel.swift */; };
 		63313B1E2C40DCA20016C932 /* alarm.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 63313B1D2C40DCA20016C932 /* alarm.mp3 */; };
-		636EF0D92C4423BF004CEA6E /* timerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 636EF0D82C4423BF004CEA6E /* timerView.swift */; };
 		637D39A72C3F9D810084ACA9 /* TimerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637D39A62C3F9D810084ACA9 /* TimerApp.swift */; };
 		637D39A92C3F9D810084ACA9 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637D39A82C3F9D810084ACA9 /* ContentView.swift */; };
 		637D39AB2C3F9D820084ACA9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 637D39AA2C3F9D820084ACA9 /* Assets.xcassets */; };
 		637D39AE2C3F9D820084ACA9 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 637D39AD2C3F9D820084ACA9 /* Preview Assets.xcassets */; };
 		637D39D22C3FA3DC0084ACA9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637D39D12C3FA3DC0084ACA9 /* AppDelegate.swift */; };
-		639436FD2C41E70F00D69BF1 /* SwiftUIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639436FC2C41E70F00D69BF1 /* SwiftUIView.swift */; };
 		63A4CD2A2C44967A00A50D41 /* settingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63A4CD292C44967A00A50D41 /* settingsView.swift */; };
 		63A4CD2F2C4621E900A50D41 /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = 63A4CD2E2C4621E900A50D41 /* LaunchAtLogin */; };
 /* End PBXBuildFile section */
@@ -42,7 +40,6 @@
 		632108432C53E8B7002D790E /* TimerState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerState.swift; sourceTree = "<group>"; };
 		63313B1B2C40276C0016C932 /* TimerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerViewModel.swift; sourceTree = "<group>"; };
 		63313B1D2C40DCA20016C932 /* alarm.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = alarm.mp3; sourceTree = "<group>"; };
-		636EF0D82C4423BF004CEA6E /* timerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = timerView.swift; sourceTree = "<group>"; };
 		637D39A32C3F9D810084ACA9 /* Timer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Timer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		637D39A62C3F9D810084ACA9 /* TimerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerApp.swift; sourceTree = "<group>"; };
 		637D39A82C3F9D810084ACA9 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -52,7 +49,6 @@
 		637D39B42C3F9D820084ACA9 /* TimerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TimerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		637D39BE2C3F9D820084ACA9 /* TimerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TimerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		637D39D12C3FA3DC0084ACA9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		639436FC2C41E70F00D69BF1 /* SwiftUIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftUIView.swift; sourceTree = "<group>"; };
 		63A4CD292C44967A00A50D41 /* settingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = settingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -110,8 +106,6 @@
 				637D39D12C3FA3DC0084ACA9 /* AppDelegate.swift */,
 				637D39A82C3F9D810084ACA9 /* ContentView.swift */,
 				63A4CD292C44967A00A50D41 /* settingsView.swift */,
-				636EF0D82C4423BF004CEA6E /* timerView.swift */,
-				639436FC2C41E70F00D69BF1 /* SwiftUIView.swift */,
 				637D39AA2C3F9D820084ACA9 /* Assets.xcassets */,
 				637D39AF2C3F9D820084ACA9 /* Timer.entitlements */,
 				637D39AC2C3F9D820084ACA9 /* Preview Content */,
@@ -265,13 +259,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				63313B1C2C40276C0016C932 /* TimerViewModel.swift in Sources */,
-				636EF0D92C4423BF004CEA6E /* timerView.swift in Sources */,
 				63A4CD2A2C44967A00A50D41 /* settingsView.swift in Sources */,
 				637D39D22C3FA3DC0084ACA9 /* AppDelegate.swift in Sources */,
 				637D39A92C3F9D810084ACA9 /* ContentView.swift in Sources */,
 				632108442C53E8B7002D790E /* TimerState.swift in Sources */,
 				637D39A72C3F9D810084ACA9 /* TimerApp.swift in Sources */,
-				639436FD2C41E70F00D69BF1 /* SwiftUIView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -438,9 +430,9 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Timer/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Cloud;
+				INFOPLIST_KEY_CFBundleDisplayName = "Focus Timer";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -470,9 +462,9 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Timer/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Cloud;
+				INFOPLIST_KEY_CFBundleDisplayName = "Focus Timer";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

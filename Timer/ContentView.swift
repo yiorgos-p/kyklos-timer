@@ -1,16 +1,21 @@
 import SwiftUI
 import AppKit
 
-private var detachedTimerWindowController: NSWindowController?
-
 struct ContentView: View {
+    enum Presentation {
+        case popover
+        case window
+    }
+
     @ObservedObject var viewModel: TimerViewModel
+    var presentation: Presentation = .popover
 
     @AppStorage("standardTimer") private var standardTimer = 25
     @AppStorage("shortBreak") private var shortBreak = 5
     @AppStorage("longBreak") private var longBreak = 10
     @AppStorage("useMouseControls") private var useMouseControls = false
     @AppStorage("zenMode") private var zenMode = false
+    @AppStorage("keepWindowOnTop") private var keepWindowOnTop = false
 
     private let popoverWidth: CGFloat = 360
 
@@ -34,6 +39,8 @@ struct ContentView: View {
                 footerControls
             }
             .padding(18)
+            // Leave room for the window's close/minimize buttons, which sit over the content.
+            .padding(.top, presentation == .window ? 14 : 0)
             .animation(
                 .snappy(duration: 0.25),
                 value: shouldShowSetupControls
@@ -41,8 +48,12 @@ struct ContentView: View {
         }
         .frame(width: popoverWidth)
         .fixedSize(horizontal: false, vertical: true)
+        .ignoresSafeArea(edges: presentation == .window ? .all : [])
         .onChange(of: shouldShowSetupControls) { _, _ in
-            guard let delegate = NSApp.delegate as? AppDelegate else {
+            guard
+                presentation == .popover,
+                let delegate = NSApp.delegate as? AppDelegate
+            else {
                 return
             }
 
@@ -299,13 +310,33 @@ struct ContentView: View {
 
             Spacer()
 
-            Button {
-                openTimerWindow()
-            } label: {
-                Label("Detach", systemImage: "macwindow")
+            switch presentation {
+            case .popover:
+                Button {
+                    appDelegate?.showMainWindow()
+                } label: {
+                    Label("Open Window", systemImage: "macwindow")
+                }
+                .help("Open the timer in its own window")
+                .modifier(SecondaryGlassButtonModifier())
+
+            case .window:
+                Button {
+                    keepWindowOnTop.toggle()
+                    appDelegate?.applyWindowLevel()
+                } label: {
+                    Label(
+                        "On Top",
+                        systemImage: keepWindowOnTop ? "pin.fill" : "pin"
+                    )
+                }
+                .help(
+                    keepWindowOnTop
+                        ? "Stop keeping this window above other windows"
+                        : "Keep this window above other windows"
+                )
+                .modifier(SecondaryGlassButtonModifier())
             }
-            .help("Open the timer in a separate window")
-            .modifier(SecondaryGlassButtonModifier())
 
             if #available(macOS 14.0, *) {
                 SettingsLink {
@@ -402,79 +433,8 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Detached window
-
-    private func openTimerWindow() {
-        closePopover()
-
-        NSApp.activate(ignoringOtherApps: true)
-
-        if let controller = detachedTimerWindowController,
-           let existingWindow = controller.window {
-            existingWindow.makeKeyAndOrderFront(nil)
-            return
-        }
-
-        let windowSize = NSSize(
-            width: 240,
-            height: 240
-        )
-
-        let hostingController = NSHostingController(
-            rootView: timerView(viewModel: viewModel)
-        )
-
-        let window = NSWindow(
-            contentRect: NSRect(
-                origin: .zero,
-                size: windowSize
-            ),
-            styleMask: [
-                .titled,
-                .closable,
-                .miniaturizable,
-                .resizable
-            ],
-            backing: .buffered,
-            defer: false
-        )
-
-        window.title = "Timer"
-        window.center()
-        window.setFrameAutosaveName("TimerWindow")
-        window.isReleasedWhenClosed = false
-        window.level = .floating
-        window.collectionBehavior = [
-            .moveToActiveSpace,
-            .fullScreenAuxiliary
-        ]
-        let minimumContentSize = timerView.minimumContentSize
-        window.contentMinSize = minimumContentSize
-        window.minSize = window.frameRect(
-            forContentRect: NSRect(
-                origin: .zero,
-                size: minimumContentSize
-            )
-        ).size
-        window.contentViewController = hostingController
-
-        let controller = NSWindowController(window: window)
-        detachedTimerWindowController = controller
-
-        controller.showWindow(nil)
-        window.makeKeyAndOrderFront(nil)
-    }
-
-    private func closePopover() {
-        guard
-            let delegate = NSApp.delegate as? AppDelegate,
-            let popover = delegate.popover,
-            popover.isShown
-        else {
-            return
-        }
-
-        popover.performClose(nil)
+    private var appDelegate: AppDelegate? {
+        NSApp.delegate as? AppDelegate
     }
 }
 

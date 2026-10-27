@@ -261,7 +261,7 @@ struct TimerSettingsView: View {
                     .accessibilityHidden(true)
 
                 VStack(spacing: 4) {
-                    Text("Cloud")
+                    Text("Focus Timer")
                         .font(.title2)
                         .fontWeight(.semibold)
 
@@ -272,7 +272,7 @@ struct TimerSettingsView: View {
                 }
 
                 Text(
-                    "A free, minimal Pomodoro timer for macOS that lives in the menu bar. Cloud includes custom presets, focused timer controls, and a detachable timer window—without ads or data collection."
+                    "A free, minimal Pomodoro timer for macOS, in its own window and in the menu bar. Focus Timer includes custom presets and focused timer controls—without ads or data collection."
                 )
                 .font(.body)
                 .foregroundStyle(.secondary)

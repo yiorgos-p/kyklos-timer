@@ -1,36 +1,34 @@
 import Cocoa
 import SwiftUI
 import Combine
+import UserNotifications
 
-class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     var statusItem: NSStatusItem!
     var popover: NSPopover!
     var viewModel: TimerViewModel!
     var timerHostingController: NSHostingController<ContentView>!
     private var popoverResizeTimer: Timer?
     var cancellables: Set<AnyCancellable> = []
-    var settingsWindowController: NSWindowController?
-    var didMakeRegularForSettings = false
+    var mainWindowController: NSWindowController?
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        // Prevent app from showing in Dock and displaying windows
-        NSApp.setActivationPolicy(.accessory)
-        
+        if Bundle.main.bundleURL.pathExtension == "app" {
+            UNUserNotificationCenter.current().delegate = self
+        }
+
         // Initialize the timer with the saved Focus preset.
         let defaults = UserDefaults.standard
         let focusDuration = defaults.object(forKey: "standardTimer") == nil
             ? 25
             : defaults.double(forKey: "standardTimer")
         viewModel = TimerViewModel(duration: focusDuration)
-        
+
         // Create the status bar item
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
             button.title = ""
             button.action = #selector(togglePopover(_:))
-            //print("Status item button created") // Debug log
-        } else {
-            //print("Failed to create status item button") // Debug log
         }
 
         // Create the popover
@@ -47,16 +45,43 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         )
         popover.behavior = .transient
 
-        // Observe the remaining time to update the status bar title
+        // Keep the menu bar title in sync with the timer
         viewModel.$remainingTime
+            .combineLatest(viewModel.$timerState)
             .receive(on: RunLoop.main)
-            .sink { [weak self] remainingTime in
+            .sink { [weak self] _ in
                 self?.updateStatusBarTitle()
             }
             .store(in: &cancellables)
+
+        showMainWindow()
+    }
+
+    // Clicking the Dock icon brings the window back after it was closed.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            showMainWindow()
+        }
+        return true
+    }
+
+    // Show the "Time's up" banner even when the app is in front.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list])
     }
 
     @objc func togglePopover(_ sender: Any?) {
+        // Only one full timer UI at a time: if the window is open, bring it forward instead of opening the popover.
+        if let window = mainWindowController?.window, window.isVisible, !window.isMiniaturized {
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+
         if let button = statusItem.button {
             if popover.isShown {
                 stopPopoverResizeAnimation()
@@ -70,23 +95,76 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
     }
-    
+
     func updateStatusBarTitle() {
         if let button = statusItem.button {
-            let minutes = viewModel.remainingTime / 60
-            let seconds = viewModel.remainingTime % 60
-            let title = String(format: "%02d:%02d", minutes, seconds)
-            
+            var title = viewModel.timeString(from: viewModel.remainingTime)
+
+            if viewModel.timerState == .paused {
+                title = "⏸ " + title
+            }
+
             // Create an attributed string with monospace font
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
             ]
             let attributedTitle = NSAttributedString(string: title, attributes: attributes)
-            
+
             button.attributedTitle = attributedTitle
-            //print("Updated status bar title to \(button.title)") // Debug log
         }
     }
+
+    // MARK: - Main window
+
+    func showMainWindow() {
+        if let popover, popover.isShown {
+            popover.performClose(nil)
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+
+        if let window = mainWindowController?.window {
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        let hostingController = NSHostingController(
+            rootView: ContentView(viewModel: viewModel, presentation: .window)
+        )
+        // Size the window to the content, including when Zen Mode hides controls.
+        hostingController.sizingOptions = [.minSize, .maxSize]
+
+        let window = NSWindow(contentViewController: hostingController)
+        window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Timer"
+        window.isMovableByWindowBackground = true
+        window.isReleasedWhenClosed = false
+        window.collectionBehavior = [.fullScreenAuxiliary]
+        window.setFrameAutosaveName("MainWindow")
+        if !window.setFrameUsingName("MainWindow") {
+            window.center()
+        }
+        applyWindowLevel(to: window)
+
+        let controller = NSWindowController(window: window)
+        mainWindowController = controller
+        controller.showWindow(nil)
+    }
+
+    func applyWindowLevel() {
+        if let window = mainWindowController?.window {
+            applyWindowLevel(to: window)
+        }
+    }
+
+    private func applyWindowLevel(to window: NSWindow) {
+        let keepOnTop = UserDefaults.standard.bool(forKey: "keepWindowOnTop")
+        window.level = keepOnTop ? .floating : .normal
+    }
+
+    // MARK: - Popover resizing
 
     func animatePopoverToFitContent() {
         guard
@@ -163,63 +241,5 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         popoverResizeTimer?.invalidate()
         popoverResizeTimer = nil
         popover?.animates = true
-    }
-
-    func showSettings() {
-        // Close the popover so the window isn't blocked and to avoid transient focus issues
-        if let popover = popover, popover.isShown {
-            popover.performClose(nil)
-        }
-
-        // If we already have a Settings window, just bring it to front
-        if let controller = settingsWindowController, let window = controller.window {
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-
-        // For menu bar apps, temporarily switch to regular so windows can appear reliably
-        if NSApp.activationPolicy() != .regular {
-            NSApp.setActivationPolicy(.regular)
-            didMakeRegularForSettings = true
-        }
-
-        NSApp.activate(ignoringOtherApps: true)
-
-        // Present SettingsView in a retained window controller
-        let screen = NSScreen.main
-        let screenRect = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
-        let windowWidth: CGFloat = 420
-        let windowHeight: CGFloat = 360
-        let windowX = screenRect.midX - (windowWidth / 2)
-        let windowY = screenRect.midY - (windowHeight / 2)
-
-        let hosting = NSHostingController(rootView: TimerSettingsView())
-        let window = NSWindow(
-            contentRect: NSRect(x: windowX, y: windowY, width: windowWidth, height: windowHeight),
-            styleMask: [.titled, .closable, .miniaturizable],
-            backing: .buffered, defer: false)
-        window.center()
-        window.setFrameAutosaveName("SettingsWindowFallback")
-        window.isReleasedWhenClosed = false
-        window.collectionBehavior = [.moveToActiveSpace]
-        window.level = .floating
-        window.contentViewController = hosting
-        window.delegate = self
-
-        let controller = NSWindowController(window: window)
-        self.settingsWindowController = controller
-        controller.showWindow(nil)
-        window.makeKeyAndOrderFront(nil)
-    }
-
-    func windowWillClose(_ notification: Notification) {
-        if let window = notification.object as? NSWindow, window == settingsWindowController?.window {
-            settingsWindowController = nil
-            if didMakeRegularForSettings {
-                NSApp.setActivationPolicy(.accessory)
-                didMakeRegularForSettings = false
-            }
-        }
     }
 }
