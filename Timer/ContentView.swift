@@ -16,6 +16,8 @@ struct ContentView: View {
     @AppStorage("useMouseControls") private var useMouseControls = false
     @AppStorage("zenMode") private var zenMode = false
     @AppStorage("keepWindowOnTop") private var keepWindowOnTop = false
+    @FocusState private var taskFieldFocused: Bool
+    @Environment(\.openSettings) private var openSettings
 
     private let popoverWidth: CGFloat = 360
 
@@ -39,8 +41,6 @@ struct ContentView: View {
                 footerControls
             }
             .padding(18)
-            // Leave room for the window's close/minimize buttons, which sit over the content.
-            .padding(.top, presentation == .window ? 14 : 0)
             .animation(
                 .snappy(duration: 0.25),
                 value: shouldShowSetupControls
@@ -48,16 +48,13 @@ struct ContentView: View {
         }
         .frame(width: popoverWidth)
         .fixedSize(horizontal: false, vertical: true)
-        .ignoresSafeArea(edges: presentation == .window ? .all : [])
         .onChange(of: shouldShowSetupControls) { _, _ in
-            guard
-                presentation == .popover,
-                let delegate = NSApp.delegate as? AppDelegate
-            else {
-                return
+            switch presentation {
+            case .popover:
+                appDelegate?.animatePopoverToFitContent()
+            case .window:
+                appDelegate?.fitMainWindowToContent()
             }
-
-            delegate.animatePopoverToFitContent()
         }
     }
 
@@ -79,6 +76,10 @@ struct ContentView: View {
             .animation(.easeInOut(duration: 0.4), value: ringTint)
         }
         .ignoresSafeArea()
+        // Clicking anywhere outside the task field takes the focus off it, so Space starts the timer again.
+        .onTapGesture {
+            taskFieldFocused = false
+        }
     }
 
     // MARK: - Timer header
@@ -167,6 +168,10 @@ struct ContentView: View {
     private var taskField: some View {
         TextField("What are you working on?", text: $viewModel.task)
             .textFieldStyle(.plain)
+            .focused($taskFieldFocused)
+            .onSubmit {
+                taskFieldFocused = false
+            }
             .multilineTextAlignment(.center)
             .font(.system(size: 14, weight: .medium))
             .lineLimit(1)
@@ -351,13 +356,15 @@ struct ContentView: View {
                 .modifier(SecondaryGlassButtonModifier())
             }
 
-            if #available(macOS 14.0, *) {
-                SettingsLink {
-                    Label("Settings", systemImage: "gearshape")
-                }
-                .help("Open Anchor Settings")
-                .modifier(SecondaryGlassButtonModifier())
+            Button {
+                // Bring the app forward first, or Settings can open behind other apps when the Dock icon is hidden.
+                NSApp.activate(ignoringOtherApps: true)
+                openSettings()
+            } label: {
+                Label("Settings", systemImage: "gearshape")
             }
+            .help("Open Anchor Settings")
+            .modifier(SecondaryGlassButtonModifier())
         }
         .padding(.top, 2)
     }

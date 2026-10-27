@@ -8,6 +8,8 @@ struct TimerSettingsView: View {
     @AppStorage("useMouseControls") private var useMouseControls = false
     @AppStorage("zenMode") private var zenMode = false
     @AppStorage("globalShortcutEnabled") private var globalShortcutEnabled = true
+    @AppStorage("showInDock") private var showInDock = true
+    @AppStorage("menuBarStyle") private var menuBarStyle = "time"
     @State private var selectedTab = SettingsTab.general
 
     var body: some View {
@@ -216,6 +218,62 @@ struct TimerSettingsView: View {
                     Toggle("Global Shortcut", isOn: $globalShortcutEnabled)
                         .labelsHidden()
                         .help("Press Control-Option-P anywhere to start or pause the timer.")
+                }
+                .padding(14)
+
+                Divider()
+                    .padding(.leading, 50)
+
+                HStack(spacing: 12) {
+                    Image(systemName: "menubar.rectangle")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Menu Bar")
+                            .font(.body)
+
+                        Text("Circle empties as time runs out: green, then yellow with a third left, red near the end.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Picker("Menu Bar", selection: $menuBarStyle) {
+                        Text("Time").tag("time")
+                        Text("Circle").tag("circle")
+                        Text("Both").tag("both")
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 180)
+                }
+                .padding(14)
+
+                Divider()
+                    .padding(.leading, 50)
+
+                HStack(spacing: 12) {
+                    Image(systemName: "dock.rectangle")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Show in Dock")
+                            .font(.body)
+
+                        Text("When off, Anchor lives in the menu bar and its window.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Toggle("Show in Dock", isOn: $showInDock)
+                        .labelsHidden()
                 }
                 .padding(14)
             }
