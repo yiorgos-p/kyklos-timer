@@ -1001,13 +1001,15 @@ private struct GlassSurface<S: Shape>: ViewModifier {
 }
 
 /// The whole window as one Liquid Glass surface, so it follows the Liquid Glass setting like the popover does.
+/// Plain glass this large comes out flat grey, and on Clear it lets dark windows behind darken the text's
+/// background, so it is tinted halfway toward the window colour: light in Light Mode, dark in Dark Mode.
 /// Before macOS 26 the window keeps the standard background.
 private struct WindowGlass: View {
     var body: some View {
         if #available(macOS 26.0, *) {
             Rectangle()
                 .fill(Color.clear)
-                .glassEffect(.regular, in: Rectangle())
+                .glassEffect(.regular.tint(Color(nsColor: .windowBackgroundColor).opacity(0.5)), in: Rectangle())
         }
     }
 }
