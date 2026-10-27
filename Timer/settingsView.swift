@@ -1,5 +1,6 @@
 import SwiftUI
 import LaunchAtLogin
+import UserNotifications
 
 struct TimerSettingsView: View {
     @AppStorage("standardTimer") private var standardTimer = 25
@@ -11,6 +12,7 @@ struct TimerSettingsView: View {
     @AppStorage("showInDock") private var showInDock = true
     @AppStorage("menuBarStyle") private var menuBarStyle = "time"
     @State private var selectedTab = SettingsTab.general
+    @State private var notificationsDenied = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -39,7 +41,13 @@ struct TimerSettingsView: View {
             switch selectedTab {
             case .general:
                 ScrollView {
-                    generalSection
+                    VStack(spacing: 16) {
+                        if notificationsDenied {
+                            notificationsWarning
+                        }
+
+                        generalSection
+                    }
                         .frame(
                             maxWidth: .infinity,
                             alignment: .topLeading
@@ -75,6 +83,52 @@ struct TimerSettingsView: View {
             idealHeight: 560
         )
         .background(Color(nsColor: .windowBackgroundColor))
+        .task {
+            await refreshNotificationStatus()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task {
+                await refreshNotificationStatus()
+            }
+        }
+    }
+
+    /// macOS only asks for notification permission once, so if it was turned down, say so and link to the fix.
+    private func refreshNotificationStatus() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        notificationsDenied = settings.authorizationStatus == .denied
+    }
+
+    private var notificationsWarning: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "bell.slash.fill")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(.orange)
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Notifications are off")
+                    .font(.body)
+
+                Text("You won't get a \"Time's up\" banner. Turn on Allow Notifications for Anchor in System Settings.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button("Open Settings") {
+                let bundleID = Bundle.main.bundleIdentifier ?? ""
+                if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(bundleID)") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+        }
+        .padding(14)
+        .background {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.orange.opacity(0.12))
+        }
     }
 
     // MARK: - Header
