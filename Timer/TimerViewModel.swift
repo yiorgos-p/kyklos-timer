@@ -81,8 +81,9 @@ final class TimerViewModel: ObservableObject {
         }
 
         // Once a focus session has finished it is already counted, so look at the count as it will be after this one.
+        // (It is 0 only if the count was reset in the meantime, which isn't a full round.)
         let sessions = completedFocusToday + (timerState == .finished ? 0 : 1)
-        return sessions % TimerPhase.focusSessionsPerLongBreak == 0 ? .longBreak : .shortBreak
+        return sessions > 0 && sessions % TimerPhase.focusSessionsPerLongBreak == 0 ? .longBreak : .shortBreak
     }
 
     // MARK: - Controls

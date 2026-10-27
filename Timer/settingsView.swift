@@ -1,6 +1,7 @@
 import SwiftUI
 import LaunchAtLogin
 import UserNotifications
+import Carbon.HIToolbox
 
 struct TimerSettingsView: View {
     @AppStorage("standardTimer") private var standardTimer = 25
@@ -18,6 +19,7 @@ struct TimerSettingsView: View {
     @AppStorage("sessionsDay") private var sessionsDay = ""
     @State private var selectedTab = SettingsTab.general
     @State private var notificationsDenied = false
+    @State private var shortcutMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -320,19 +322,33 @@ struct TimerSettingsView: View {
                         .frame(width: 24)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Global Shortcut ⌃⌥P")
+                        Text("Global Shortcut")
                             .font(.body)
 
-                        Text("Start, pause, or resume the timer from any app.")
+                        Text("Start, pause, or resume the timer from any app. Click the shortcut to change it.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+
+                        if let shortcutMessage {
+                            Text(shortcutMessage)
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
                     }
 
                     Spacer()
 
+                    ShortcutRecorder(message: $shortcutMessage)
+                        .disabled(!globalShortcutEnabled)
+
                     Toggle("Global Shortcut", isOn: $globalShortcutEnabled)
                         .labelsHidden()
-                        .help("Press Control-Option-P anywhere to start or pause the timer.")
+                        .help("Start or pause the timer from anywhere with the shortcut.")
+                }
+                .onAppear {
+                    if AppDelegate.shared?.globalShortcutWorks == false {
+                        shortcutMessage = ShortcutRecorder.takenMessage
+                    }
                 }
                 .padding(14)
 
@@ -499,7 +515,7 @@ struct TimerSettingsView: View {
                         .font(.body)
                         .monospacedDigit()
 
-                    Text("Starts again from zero each day. You can also right-click the dots to reset.")
+                    Text("Starts again from zero each day. The ↺ next to the dots resets it too.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -1058,6 +1074,71 @@ private struct CircularTimeInput: View {
             range.upperBound,
             max(range.lowerBound, value + amount)
         )
+    }
+}
+
+// MARK: - Shortcut recorder
+
+/// Shows the global shortcut; click it, then press the new keys. Escape cancels.
+private struct ShortcutRecorder: View {
+    static let takenMessage = "macOS wouldn't take this shortcut. Another app may be using it."
+
+    @Binding var message: String?
+
+    // Only here so the button redraws when the shortcut changes.
+    @AppStorage("globalShortcutKey") private var savedKeyName = ""
+    @State private var isRecording = false
+    @State private var monitor: Any?
+
+    var body: some View {
+        Button {
+            isRecording ? stopRecording() : startRecording()
+        } label: {
+            Text(isRecording ? "Type shortcut…" : GlobalShortcut.saved.displayString)
+                .monospacedDigit()
+                .frame(minWidth: 96)
+        }
+        .help("Click, then press the new shortcut. Escape cancels.")
+        .onDisappear {
+            stopRecording()
+        }
+    }
+
+    private func startRecording() {
+        message = nil
+        isRecording = true
+        AppDelegate.shared?.setGlobalShortcutSuspended(true)
+
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.keyCode == UInt16(kVK_Escape) {
+                stopRecording()
+            } else if let shortcut = GlobalShortcut(event: event) {
+                shortcut.save()
+                stopRecording()
+
+                if AppDelegate.shared?.globalShortcutWorks == false {
+                    message = Self.takenMessage
+                }
+            } else {
+                message = "Use ⌘ or ⌃ plus at least one more modifier key, like ⌃⌥A."
+            }
+
+            // Swallow every key while recording, so nothing else reacts to it.
+            return nil
+        }
+    }
+
+    private func stopRecording() {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        monitor = nil
+
+        if isRecording {
+            isRecording = false
+            // Registers the new shortcut straight away, so globalShortcutWorks is up to date.
+            AppDelegate.shared?.setGlobalShortcutSuspended(false)
+        }
     }
 }
 

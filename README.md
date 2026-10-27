@@ -14,7 +14,7 @@ Anchor is based on [Cloud](https://github.com/YYUUGGOO/Cloud) by David.
 - Today's finished focus sessions, shown as dots (right-click to reset)
 - Accurate to the system clock: keeps counting through sleep and never drifts
 - A notification and an alarm when time is up, with the alarm ringing again every minute for up to 10 minutes
-- Global shortcut ⌃⌥P to start or pause from any app
+- A global shortcut to start or pause from any app: ⌃⌥A, or one you pick
 - Optional mouse mode: single-click the timer to start or pause, and triple-click to reset
 - Optional Zen Mode that hides setup controls while the timer is running
 - A window that can stay on top of other windows

@@ -110,6 +110,23 @@ struct ContentView: View {
                     }
                     .disabled(viewModel.completedFocusToday == 0)
                 }
+
+                if viewModel.completedFocusToday > 0 {
+                    Button {
+                        withAnimation(.snappy(duration: 0.25)) {
+                            viewModel.resetTodaysSessions()
+                        }
+                    } label: {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 10, weight: .bold))
+                            .frame(width: 18, height: 18)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.tertiary)
+                    .help("Reset today's sessions")
+                    .accessibilityLabel("Reset today's sessions")
+                }
             }
 
             timerDisplay
@@ -527,7 +544,7 @@ private struct SessionDots: View {
                     .monospacedDigit()
             }
         }
-        .help("\(completed) focus session\(completed == 1 ? "" : "s") finished today. A long break comes after every \(perCycle). Right-click to reset.")
+        .help("\(completed) focus session\(completed == 1 ? "" : "s") finished today. A long break comes after every \(perCycle).")
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(completed) focus sessions finished today")
     }

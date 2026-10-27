@@ -16,7 +16,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     var cancellables: Set<AnyCancellable> = []
     var mainWindowController: NSWindowController?
     private var globalShortcut: GlobalHotKey?
+    private var registeredShortcut: GlobalShortcut?
+    private var globalShortcutSuspended = false
+    /// False when the shortcut is on but macOS wouldn't register it, usually because another app already uses it.
+    private(set) var globalShortcutWorks = true
     private var showsInDock: Bool?
+    private var presetMinutes: [TimerPhase: Int]?
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         Self.shared = self
@@ -203,6 +208,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         updateStatusBarTitle()
         updateAppearance()
 
+        // A preset changed in Settings: show its new length now, unless the timer is in use.
+        let presets = Dictionary(uniqueKeysWithValues: TimerPhase.allCases.map { ($0, $0.minutes) })
+        if let presetMinutes, presetMinutes[viewModel.phase] != presets[viewModel.phase], viewModel.timerState == .stopped {
+            viewModel.setPhase(viewModel.phase)
+        }
+        presetMinutes = presets
+
         let showInDock = UserDefaults.standard.object(forKey: "showInDock") as? Bool ?? true
 
         // Only act on a real change: this runs on every settings write, including each keystroke in the task field.
@@ -245,20 +257,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
     // MARK: - Global shortcut
 
-    /// Control-Option-P starts, pauses or resumes the timer from any app.
-    private func updateGlobalShortcut() {
+    /// The saved shortcut (Control-Option-A unless changed) starts, pauses or resumes the timer from any app.
+    func updateGlobalShortcut() {
         let enabled = UserDefaults.standard.object(forKey: "globalShortcutEnabled") as? Bool ?? true
+        let wanted = enabled && !globalShortcutSuspended ? GlobalShortcut.saved : nil
 
-        if enabled, globalShortcut == nil {
-            globalShortcut = GlobalHotKey(
-                keyCode: UInt32(kVK_ANSI_P),
-                modifiers: UInt32(controlKey | optionKey)
-            ) { [weak self] in
+        guard wanted != registeredShortcut else {
+            return
+        }
+
+        // Let go of the old keys first, so registering the same keys again can't clash with itself.
+        globalShortcut = nil
+        registeredShortcut = wanted
+
+        if let wanted {
+            globalShortcut = GlobalHotKey(keyCode: wanted.keyCode, modifiers: wanted.modifiers) { [weak self] in
                 self?.viewModel.toggleTimer()
             }
-        } else if !enabled {
-            globalShortcut = nil
         }
+
+        globalShortcutWorks = wanted == nil || globalShortcut != nil
+    }
+
+    /// Settings turns the shortcut off while recording a new one, so pressing the current keys doesn't start the timer.
+    func setGlobalShortcutSuspended(_ suspended: Bool) {
+        globalShortcutSuspended = suspended
+        updateGlobalShortcut()
     }
 
     // MARK: - Main window
@@ -442,6 +466,86 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         popoverResizeTimer?.invalidate()
         popoverResizeTimer = nil
         popover?.animates = true
+    }
+}
+
+// MARK: - Global shortcut setting
+
+/// The global shortcut as saved in Settings: a Carbon key code and modifier mask, plus the key's label for display.
+struct GlobalShortcut: Equatable {
+    var keyCode: UInt32
+    var modifiers: UInt32
+    var keyName: String
+
+    static let standard = GlobalShortcut(
+        keyCode: UInt32(kVK_ANSI_A),
+        modifiers: UInt32(controlKey | optionKey),
+        keyName: "A"
+    )
+
+    static var saved: GlobalShortcut {
+        let defaults = UserDefaults.standard
+
+        guard let keyName = defaults.string(forKey: "globalShortcutKey") else {
+            return .standard
+        }
+
+        return GlobalShortcut(
+            keyCode: UInt32(defaults.integer(forKey: "globalShortcutKeyCode")),
+            modifiers: UInt32(defaults.integer(forKey: "globalShortcutModifiers")),
+            keyName: keyName
+        )
+    }
+
+    func save() {
+        let defaults = UserDefaults.standard
+        defaults.set(Int(keyCode), forKey: "globalShortcutKeyCode")
+        defaults.set(Int(modifiers), forKey: "globalShortcutModifiers")
+        defaults.set(keyName, forKey: "globalShortcutKey")
+    }
+
+    /// In Apple's usual order, like ⌃⌥⇧⌘A.
+    var displayString: String {
+        let symbols: [(Int, String)] = [(controlKey, "⌃"), (optionKey, "⌥"), (shiftKey, "⇧"), (cmdKey, "⌘")]
+        return symbols.filter { modifiers & UInt32($0.0) != 0 }.map(\.1).joined() + keyName
+    }
+}
+
+extension GlobalShortcut {
+    /// Reads a key press from the shortcut recorder. It needs ⌘ or ⌃ plus one more modifier,
+    /// so the shortcut can't take over typing (⌥ alone types accented letters) or a common app shortcut.
+    init?(event: NSEvent) {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        var modifiers = 0
+        if flags.contains(.control) { modifiers |= controlKey }
+        if flags.contains(.option) { modifiers |= optionKey }
+        if flags.contains(.shift) { modifiers |= shiftKey }
+        if flags.contains(.command) { modifiers |= cmdKey }
+
+        let count = [controlKey, optionKey, shiftKey, cmdKey].filter { modifiers & $0 != 0 }.count
+        guard count >= 2, modifiers & (controlKey | cmdKey) != 0 else {
+            return nil
+        }
+
+        self.init(keyCode: UInt32(event.keyCode), modifiers: UInt32(modifiers), keyName: Self.keyName(for: event))
+    }
+
+    private static let specialKeyNames: [Int: String] = [
+        kVK_Space: "Space", kVK_Return: "↩", kVK_Tab: "⇥", kVK_Delete: "⌫", kVK_ForwardDelete: "⌦",
+        kVK_LeftArrow: "←", kVK_RightArrow: "→", kVK_UpArrow: "↑", kVK_DownArrow: "↓",
+        kVK_Home: "↖", kVK_End: "↘", kVK_PageUp: "⇞", kVK_PageDown: "⇟",
+        kVK_F1: "F1", kVK_F2: "F2", kVK_F3: "F3", kVK_F4: "F4", kVK_F5: "F5", kVK_F6: "F6",
+        kVK_F7: "F7", kVK_F8: "F8", kVK_F9: "F9", kVK_F10: "F10", kVK_F11: "F11", kVK_F12: "F12"
+    ]
+
+    private static func keyName(for event: NSEvent) -> String {
+        if let name = specialKeyNames[Int(event.keyCode)] {
+            return name
+        }
+
+        // The key's own character on the current layout, without Shift or Option changing it.
+        let character = event.characters(byApplyingModifiers: [])?.uppercased() ?? ""
+        return character.isEmpty ? "Key \(event.keyCode)" : character
     }
 }
 
