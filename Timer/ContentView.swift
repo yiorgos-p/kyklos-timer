@@ -115,8 +115,10 @@ struct ContentView: View {
                 if inToolbar {
                     phasePicker(inToolbar: true)
                 } else {
+                    // The selected phase takes its own colour, like the arc and Start.
                     phasePicker(inToolbar: false)
                         .controlSize(.large)
+                        .tint(viewModel.phase.tint)
                 }
             }
             .opacity(shouldShowSetupControls ? 1 : 0)
@@ -160,6 +162,20 @@ struct ContentView: View {
 
     @ViewBuilder
     private var dial: some View {
+        dialWithClicks
+            .overlay {
+                // Scrolling over the dial changes the length a minute at a time; clicks and drags pass through.
+                ScrollWheelRepresentable { step in
+                    guard canEditDuration else {
+                        return
+                    }
+                    setDialMinutes(Int(viewModel.timerDuration) + step)
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var dialWithClicks: some View {
         if useMouseControls {
             // In mouse mode a click on the dial starts or pauses, so the minutes can't be typed; dragging still works.
             dialFace
@@ -337,7 +353,17 @@ struct ContentView: View {
 
         minutes = max(1, minutes)
         lastDragMinutes = minutes
+        setDialMinutes(minutes)
+    }
+
+    /// Sets the length from the dial, with a trackpad click at each minute it passes, like a detent.
+    private func setDialMinutes(_ minutes: Int) {
+        let before = Int(viewModel.timerDuration)
         viewModel.setDuration(minutes: minutes)
+
+        if Int(viewModel.timerDuration) != before {
+            NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+        }
     }
 
     private func beginMinutesEditing() {
@@ -1078,6 +1104,64 @@ private struct WindowToolbar<Principal: View, Actions: View>: ViewModifier {
             }
         } else {
             content
+        }
+    }
+}
+
+// MARK: - Scroll to adjust
+
+private struct ScrollWheelRepresentable: NSViewRepresentable {
+    let onStep: (Int) -> Void
+
+    func makeNSView(context: Context) -> ScrollWheelNSView {
+        let view = ScrollWheelNSView()
+        view.onStep = onStep
+        return view
+    }
+
+    func updateNSView(_ nsView: ScrollWheelNSView, context: Context) {
+        nsView.onStep = onStep
+    }
+}
+
+/// Turns scrolling into ±1 minute steps: one per notch on a mouse wheel, one per few points on a trackpad.
+private final class ScrollWheelNSView: NSView {
+    var onStep: ((Int) -> Void)?
+
+    private var accumulated: CGFloat = 0
+    private let pointsPerStep: CGFloat = 8
+
+    // Only scrolling stops here; clicks and drags go through to the dial underneath.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        NSApp.currentEvent?.type == .scrollWheel ? super.hitTest(point) : nil
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        // Coasting after a trackpad flick would spin the time far past where the fingers stopped.
+        guard event.momentumPhase.isEmpty else {
+            return
+        }
+
+        // Moving up adds time, whichever scroll direction is set in System Settings.
+        let delta = event.isDirectionInvertedFromDevice ? -event.scrollingDeltaY : event.scrollingDeltaY
+
+        guard event.hasPreciseScrollingDeltas else {
+            if delta != 0 {
+                onStep?(delta > 0 ? 1 : -1)
+            }
+            return
+        }
+
+        if event.phase == .began {
+            accumulated = 0
+        }
+
+        accumulated += delta
+
+        while abs(accumulated) >= pointsPerStep {
+            let step = accumulated > 0 ? 1 : -1
+            accumulated -= CGFloat(step) * pointsPerStep
+            onStep?(step)
         }
     }
 }

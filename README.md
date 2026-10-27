@@ -11,7 +11,7 @@ Anchor is based on [Cloud](https://github.com/YYUUGGOO/Cloud) by David.
 - When time is up, the timer counts the overtime and offers to start the next phase with one click
 - A "What are you working on?" line, shown in the window and next to the time in the menu bar
 - A 60-minute dial: the coloured arc is the time left, so 25 minutes always looks like 25 minutes, plus the time it will end
-- Drag the dial to set the length, or click the time and type it
+- Drag the dial to set the length (it clicks at each minute on a Force Touch trackpad), scroll over it, or click the time and type it
 - Today's finished focus sessions, shown as dots, with a button to reset them
 - Accurate to the system clock: keeps counting through sleep and never drifts
 - A notification and an alarm when time is up, with the alarm ringing again every minute for up to 10 minutes
