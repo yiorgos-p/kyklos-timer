@@ -4,95 +4,133 @@ import UserNotifications
 import Carbon.HIToolbox
 
 struct TimerSettingsView: View {
-    @AppStorage("standardTimer") private var standardTimer = 25
-    @AppStorage("shortBreak") private var shortBreak = 5
-    @AppStorage("longBreak") private var longBreak = 10
+    var body: some View {
+        TabView {
+            GeneralSettings()
+                .tabItem {
+                    Label("General", systemImage: "gearshape")
+                }
+
+            TimerSettings()
+                .tabItem {
+                    Label("Timer", systemImage: "timer")
+                }
+
+            AboutSettings()
+                .tabItem {
+                    Label("About", systemImage: "info.circle")
+                }
+        }
+        .frame(width: 480)
+    }
+}
+
+// MARK: - General
+
+private struct GeneralSettings: View {
     @AppStorage("useMouseControls") private var useMouseControls = false
     @AppStorage("zenMode") private var zenMode = false
-    @AppStorage("globalShortcutEnabled") private var globalShortcutEnabled = true
-    @AppStorage("showInDock") private var showInDock = true
-    @AppStorage("menuBarStyle") private var menuBarStyle = "time"
-    @AppStorage("appearance") private var appearance = "system"
     @AppStorage("repeatAlarm") private var repeatAlarm = true
     @AppStorage("minimalMode") private var minimalMode = "off"
-    @AppStorage("sessionsPerLongBreak") private var sessionsPerLongBreak = 4
-    @AppStorage("sessionsToday") private var sessionsToday = 0
-    @AppStorage("sessionsDay") private var sessionsDay = ""
-    @State private var selectedTab = SettingsTab.general
+    @AppStorage("appearance") private var appearance = "system"
+    @AppStorage("menuBarStyle") private var menuBarStyle = "time"
+    @AppStorage("showInDock") private var showInDock = true
+    @AppStorage("globalShortcutEnabled") private var globalShortcutEnabled = true
     @State private var notificationsDenied = false
     @State private var shortcutMessage: String?
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-
-            Picker("Settings section", selection: $selectedTab) {
-                Label("General", systemImage: "gearshape")
-                    .tag(SettingsTab.general)
-
-                Label(
-                    "Presets",
-                    systemImage: "clock.arrow.circlepath"
-                )
-                .tag(SettingsTab.presets)
-
-                Label("About", systemImage: "info.circle")
-                    .tag(SettingsTab.about)
+        Form {
+            if notificationsDenied {
+                Section {
+                    notificationsWarning
+                }
             }
-            .labelsHidden()
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 12)
 
-            Divider()
+            Section("Timer") {
+                Toggle(isOn: $repeatAlarm) {
+                    Text("Repeat alarm")
+                    Text("When time's up, ring again every minute until you start the next phase or stop, for up to 10 minutes.")
+                }
 
-            switch selectedTab {
-            case .general:
-                ScrollView {
-                    VStack(spacing: 16) {
-                        if notificationsDenied {
-                            notificationsWarning
-                        }
+                Picker(selection: $useMouseControls) {
+                    Text("Buttons").tag(false)
+                    Text("Mouse").tag(true)
+                } label: {
+                    Text("Controls")
+                    Text("With Mouse, click the dial to start or pause and triple-click it to reset.")
+                }
 
-                        generalSection
+                Toggle(isOn: $zenMode) {
+                    Text("Zen Mode")
+                    Text("Hide the phase switcher and − / + while the timer runs.")
+                }
+            }
+
+            Section("Window") {
+                Picker(selection: $minimalMode) {
+                    Text("Off").tag("off")
+                    Text("On Start").tag("start")
+                    Text("Always").tag("always")
+                } label: {
+                    Text("Minimal Mode")
+                    Text("A small timer that floats above other apps. Double-click it for the full window.")
+                }
+
+                Picker("Appearance", selection: $appearance) {
+                    Text("Auto").tag("system")
+                    Text("Light").tag("light")
+                    Text("Dark").tag("dark")
+                }
+
+                Picker(selection: $menuBarStyle) {
+                    Text("Time").tag("time")
+                    Text("Circle").tag("circle")
+                    Text("Both").tag("both")
+                } label: {
+                    Text("Menu Bar")
+                    Text("The circle empties as time runs out: green, then yellow with a third left, red near the end.")
+                }
+
+                Toggle(isOn: $showInDock) {
+                    Text("Show in Dock")
+                    Text("When off, Anchor lives in the menu bar and its window.")
+                }
+            }
+
+            Section("System") {
+                LaunchAtLogin.Toggle {
+                    Text("Launch at Login")
+                }
+
+                LabeledContent {
+                    HStack(spacing: 10) {
+                        ShortcutRecorder(message: $shortcutMessage)
+                            .disabled(!globalShortcutEnabled)
+
+                        Toggle("Global Shortcut", isOn: $globalShortcutEnabled)
+                            .labelsHidden()
                     }
-                        .frame(
-                            maxWidth: .infinity,
-                            alignment: .topLeading
-                        )
-                        .padding(20)
-                }
+                } label: {
+                    Text("Global Shortcut")
+                    Text("Start, pause, or resume from any app. Click the shortcut to change it.")
 
-            case .presets:
-                ScrollView {
-                    presetsSection
-                        .frame(
-                            maxWidth: .infinity,
-                            alignment: .topLeading
-                        )
-                        .padding(20)
-                }
-
-            case .about:
-                ScrollView {
-                    aboutSection
-                        .frame(
-                            maxWidth: .infinity,
-                            alignment: .topLeading
-                        )
-                        .padding(20)
+                    if let shortcutMessage {
+                        Text(shortcutMessage)
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
         }
-        .frame(
-            minWidth: 520,
-            idealWidth: 560,
-            minHeight: 500,
-            idealHeight: 560
-        )
-        .background(Color(nsColor: .windowBackgroundColor))
+        .formStyle(.grouped)
+        .scrollDisabled(true)
+        .fixedSize(horizontal: false, vertical: true)
         .task {
             await refreshNotificationStatus()
+
+            if AppDelegate.shared?.globalShortcutWorks == false {
+                shortcutMessage = ShortcutRecorder.takenMessage
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             Task {
@@ -112,11 +150,9 @@ struct TimerSettingsView: View {
             Image(systemName: "bell.slash.fill")
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(.orange)
-                .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Notifications are off")
-                    .font(.body)
 
                 Text("You won't get a \"Time's up\" banner. Turn on Allow Notifications for Anchor in System Settings.")
                     .font(.caption)
@@ -132,980 +168,144 @@ struct TimerSettingsView: View {
                 }
             }
         }
-        .padding(14)
-        .background {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.orange.opacity(0.12))
-        }
     }
+}
 
-    // MARK: - Header
+// MARK: - Timer
 
-    private var header: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(Color.accentColor.opacity(0.14))
-                    .frame(width: 46, height: 46)
+private struct TimerSettings: View {
+    @AppStorage("standardTimer") private var standardTimer = 25
+    @AppStorage("shortBreak") private var shortBreak = 5
+    @AppStorage("longBreak") private var longBreak = 10
+    @AppStorage("sessionsPerLongBreak") private var sessionsPerLongBreak = 4
+    @AppStorage("sessionsToday") private var sessionsToday = 0
+    @AppStorage("sessionsDay") private var sessionsDay = ""
 
-                Image(systemName: "timer")
-                    .font(.system(size: 23, weight: .semibold))
-                    .foregroundStyle(.tint)
+    var body: some View {
+        Form {
+            Section("Durations") {
+                MinutesRow(title: "Focus", value: $standardTimer, range: 1...TimerViewModel.maximumMinutes)
+                MinutesRow(title: "Short Break", value: $shortBreak, range: 1...30)
+                MinutesRow(title: "Long Break", value: $longBreak, range: 1...TimerViewModel.maximumMinutes)
             }
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Timer Settings")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+            Section("Rhythm") {
+                LabeledContent {
+                    HStack(spacing: 6) {
+                        Text("\(TimerPhase.focusSessionsPerLongBreak)")
+                            .monospacedDigit()
 
-                Text("Customize your presets and timer behavior")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 17)
-    }
-
-    // MARK: - General
-
-    private var generalSection: some View {
-        SettingsSection(
-            title: "General",
-            systemImage: "gearshape"
-        ) {
-            VStack(spacing: 0) {
-                HStack(spacing: 12) {
-                    Image(systemName: "power")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Launch at Login")
-                            .font(.body)
-
-                        Text("Start the timer automatically after signing in.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    LaunchAtLogin.Toggle()
+                        Stepper(
+                            "Sessions before a long break",
+                            value: $sessionsPerLongBreak,
+                            in: TimerPhase.sessionsPerLongBreakRange
+                        )
                         .labelsHidden()
-                        .help("Automatically launch the app when you log in.")
+                    }
+                } label: {
+                    Text("Sessions before a long break")
+                    Text("One dot per focus session. Once they're all filled, the next break is a long one.")
                 }
-                .padding(14)
 
-                Divider()
-                    .padding(.leading, 50)
-
-                HStack(spacing: 12) {
-                    Image(systemName: "circle.lefthalf.filled")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Appearance")
-                            .font(.body)
-
-                        Text("Auto follows your Mac's Light or Dark setting.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                LabeledContent {
+                    Button("Reset") {
+                        AppDelegate.shared?.viewModel.resetTodaysSessions()
                     }
-
-                    Spacer()
-
-                    Picker("Appearance", selection: $appearance) {
-                        Text("Auto").tag("system")
-                        Text("Light").tag("light")
-                        Text("Dark").tag("dark")
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 180)
+                    .disabled(sessionsDoneToday == 0)
+                } label: {
+                    Text("Finished today: \(sessionsDoneToday)")
+                        .monospacedDigit()
+                    Text("Starts again from zero each day. The ↺ next to the dots resets it too.")
                 }
-                .padding(14)
-
-                Divider()
-                    .padding(.leading, 50)
-
-                HStack(spacing: 12) {
-                    Image(systemName: "computermouse")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Timer Controls")
-                            .font(.body)
-
-                        Text("Choose how you start, pause, and reset the timer. With Mouse, click the timer once to start or pause it and triple-click to reset it.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    Picker("Timer Controls", selection: $useMouseControls) {
-                        Text("Buttons").tag(false)
-                        Text("Mouse").tag(true)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 150)
-                    .help("Mouse mode: click once to start or pause, and triple-click to reset.")
-                }
-                .padding(14)
-
-                Divider()
-                    .padding(.leading, 50)
-
-                HStack(spacing: 12) {
-                    Image(systemName: "leaf")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Zen Mode")
-                            .font(.body)
-
-                        Text("Hide duration and presets after the timer starts.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    Toggle("Zen Mode", isOn: $zenMode)
-                        .labelsHidden()
-                        .help("Hide setup controls while a timer is active.")
-                }
-                .padding(14)
-
-                Divider()
-                    .padding(.leading, 50)
-
-                HStack(spacing: 12) {
-                    Image(systemName: "capsule")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Minimal Mode")
-                            .font(.body)
-
-                        Text("A small timer that floats above other apps, shown during a session or all the time. Double-click it for the full window.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    Picker("Minimal Mode", selection: $minimalMode) {
-                        Text("Off").tag("off")
-                        Text("On Start").tag("start")
-                        Text("Always").tag("always")
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 220)
-                }
-                .padding(14)
-
-                Divider()
-                    .padding(.leading, 50)
-
-                HStack(spacing: 12) {
-                    Image(systemName: "bell.badge")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Repeat Alarm")
-                            .font(.body)
-
-                        Text("When time's up, ring again every minute until you start the next phase or stop, for up to 10 minutes.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    Toggle("Repeat Alarm", isOn: $repeatAlarm)
-                        .labelsHidden()
-                }
-                .padding(14)
-
-                Divider()
-                    .padding(.leading, 50)
-
-                HStack(spacing: 12) {
-                    Image(systemName: "keyboard")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Global Shortcut")
-                            .font(.body)
-
-                        Text("Start, pause, or resume the timer from any app. Click the shortcut to change it.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        if let shortcutMessage {
-                            Text(shortcutMessage)
-                                .font(.caption)
-                                .foregroundStyle(.orange)
-                        }
-                    }
-
-                    Spacer()
-
-                    ShortcutRecorder(message: $shortcutMessage)
-                        .disabled(!globalShortcutEnabled)
-
-                    Toggle("Global Shortcut", isOn: $globalShortcutEnabled)
-                        .labelsHidden()
-                        .help("Start or pause the timer from anywhere with the shortcut.")
-                }
-                .onAppear {
-                    if AppDelegate.shared?.globalShortcutWorks == false {
-                        shortcutMessage = ShortcutRecorder.takenMessage
-                    }
-                }
-                .padding(14)
-
-                Divider()
-                    .padding(.leading, 50)
-
-                HStack(spacing: 12) {
-                    Image(systemName: "menubar.rectangle")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Menu Bar")
-                            .font(.body)
-
-                        Text("Circle empties as time runs out: green, then yellow with a third left, red near the end.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    Picker("Menu Bar", selection: $menuBarStyle) {
-                        Text("Time").tag("time")
-                        Text("Circle").tag("circle")
-                        Text("Both").tag("both")
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 180)
-                }
-                .padding(14)
-
-                Divider()
-                    .padding(.leading, 50)
-
-                HStack(spacing: 12) {
-                    Image(systemName: "dock.rectangle")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Show in Dock")
-                            .font(.body)
-
-                        Text("When off, Anchor lives in the menu bar and its window.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    Toggle("Show in Dock", isOn: $showInDock)
-                        .labelsHidden()
-                }
-                .padding(14)
-            }
-            .background {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(.primary.opacity(0.08))
             }
         }
-    }
-
-    // MARK: - Presets
-
-    private var presetsSection: some View {
-        SettingsSection(
-            title: "Timer Presets",
-            systemImage: "clock.arrow.circlepath"
-        ) {
-            HStack(alignment: .top, spacing: 14) {
-                CircularPresetCard(
-                    title: "Focus",
-                    subtitle: "Deep work",
-                    systemImage: "brain.head.profile",
-                    tint: .accentColor,
-                    value: $standardTimer,
-                    range: 1...60
-                )
-
-                CircularPresetCard(
-                    title: "Short Break",
-                    subtitle: "Quick rest",
-                    systemImage: "cup.and.saucer.fill",
-                    tint: .green,
-                    value: $shortBreak,
-                    range: 1...30
-                )
-
-                CircularPresetCard(
-                    title: "Long Break",
-                    subtitle: "Recharge",
-                    systemImage: "bed.double.fill",
-                    tint: .indigo,
-                    value: $longBreak,
-                    range: 1...60
-                )
-            }
-
-            Text("Drag a dial or double-click its number to enter a duration.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .padding(.top, 2)
-
-            sessionsCard
-                .padding(.top, 8)
-        }
+        .formStyle(.grouped)
+        .scrollDisabled(true)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var sessionsDoneToday: Int {
         sessionsDay == TimerViewModel.todayKey ? sessionsToday : 0
     }
+}
 
-    private var sessionsCard: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Image(systemName: "circle.grid.2x1.fill")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 24)
+/// A preset length: type it or step it, always kept within range.
+private struct MinutesRow: View {
+    let title: String
+    @Binding var value: Int
+    let range: ClosedRange<Int>
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Sessions Before a Long Break")
-                        .font(.body)
-
-                    Text("One dot per focus session. Once they're all filled, the next break is a long one.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Text("\(TimerPhase.focusSessionsPerLongBreak)")
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-
-                Stepper(
-                    "Sessions Before a Long Break",
-                    value: $sessionsPerLongBreak,
-                    in: TimerPhase.sessionsPerLongBreakRange
-                )
-                .labelsHidden()
-            }
-            .padding(14)
-
-            Divider()
-                .padding(.leading, 50)
-
-            HStack(spacing: 12) {
-                Image(systemName: "checkmark.circle")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 24)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Finished Today: \(sessionsDoneToday)")
-                        .font(.body)
-                        .monospacedDigit()
-
-                    Text("Starts again from zero each day. The ↺ next to the dots resets it too.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Button("Reset") {
-                    AppDelegate.shared?.viewModel.resetTodaysSessions()
-                }
-                .disabled(sessionsDoneToday == 0)
-            }
-            .padding(14)
-        }
-        .background {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(.primary.opacity(0.08))
-        }
+    private var clamped: Binding<Int> {
+        Binding(
+            get: { value },
+            set: { value = min(range.upperBound, max(range.lowerBound, $0)) }
+        )
     }
 
-    // MARK: - About
+    var body: some View {
+        LabeledContent(title) {
+            HStack(spacing: 6) {
+                TextField(title, value: clamped, format: .number)
+                    .labelsHidden()
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
+                    .frame(width: 44)
 
-    private var aboutSection: some View {
-        SettingsSection(
-            title: "About Anchor",
-            systemImage: "info.circle"
-        ) {
-            VStack(spacing: 18) {
-                Image(nsImage: NSApplication.shared.applicationIconImage)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 82, height: 82)
-                    .accessibilityHidden(true)
+                Text("min")
+                    .foregroundStyle(.secondary)
 
-                VStack(spacing: 4) {
-                    Text("Anchor")
-                        .font(.title2)
-                        .fontWeight(.semibold)
+                Stepper(title, value: clamped, in: range)
+                    .labelsHidden()
+            }
+        }
+    }
+}
 
-                    Text(versionDescription)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
+// MARK: - About
 
-                Text(
-                    "A free, minimal Pomodoro timer for macOS, in its own window and in the menu bar. Anchor includes custom presets, a focus and break rhythm, and a reminder of what you are working on—without ads or data collection."
-                )
-                .font(.body)
+private struct AboutSettings: View {
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(nsImage: NSApplication.shared.applicationIconImage)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 72, height: 72)
+                .accessibilityHidden(true)
+
+            VStack(spacing: 3) {
+                Text("Anchor")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text(versionDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+
+            Text("A small timer for one thing at a time, with focus and break rhythm, a reminder of what you're working on, and no ads or data collection.")
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 420)
+                .frame(maxWidth: 360)
 
-                HStack(spacing: 8) {
-                    Label("Open Source", systemImage: "curlybraces")
-                    Text("•")
-                        .foregroundStyle(.tertiary)
-                    Text("GNU GPLv3")
-                }
+            Text("Open source under the GNU GPLv3")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-                Link(
-                    destination: URL(
-                        string: "https://github.com/YYUUGGOO/Cloud"
-                    )!
-                ) {
-                    Label(
-                        "Based on Cloud by David",
-                        systemImage: "arrow.up.right.square"
-                    )
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 24)
-            .padding(.vertical, 28)
-            .background {
-                RoundedRectangle(
-                    cornerRadius: 18,
-                    style: .continuous
-                )
-                .fill(Color(nsColor: .controlBackgroundColor))
-            }
-            .overlay {
-                RoundedRectangle(
-                    cornerRadius: 18,
-                    style: .continuous
-                )
-                .strokeBorder(.primary.opacity(0.08))
+            Link(destination: URL(string: "https://github.com/YYUUGGOO/Cloud")!) {
+                Label("Based on Cloud by David", systemImage: "arrow.up.right.square")
             }
         }
+        .padding(28)
+        .frame(maxWidth: .infinity)
     }
 
     private var versionDescription: String {
         let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String
-            ?? "Unknown"
-        let build = info?["CFBundleVersion"] as? String
-            ?? "Unknown"
+        let version = info?["CFBundleShortVersionString"] as? String ?? "Unknown"
+        let build = info?["CFBundleVersion"] as? String ?? "Unknown"
 
         return "Version \(version) (Build \(build))"
-    }
-}
-
-private enum SettingsTab: Hashable {
-    case general
-    case presets
-    case about
-}
-
-// MARK: - Preset Card
-
-private struct CircularPresetCard: View {
-    let title: String
-    let subtitle: String
-    let systemImage: String
-    let tint: Color
-
-    @Binding var value: Int
-
-    let range: ClosedRange<Int>
-
-    var body: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(tint)
-                    .frame(width: 18)
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .lineLimit(1)
-
-                    Text(subtitle)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 0)
-            }
-
-            CircularTimeInput(
-                value: $value,
-                range: range,
-                tint: tint
-            )
-            .frame(width: 120, height: 120)
-
-            HStack(spacing: 12) {
-                DialButton(
-                    systemImage: "minus",
-                    disabled: value <= range.lowerBound
-                ) {
-                    changeValue(by: -1)
-                }
-
-                Text("\(value) min")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-                    .frame(minWidth: 44)
-
-                DialButton(
-                    systemImage: "plus",
-                    disabled: value >= range.upperBound
-                ) {
-                    changeValue(by: 1)
-                }
-            }
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity)
-        .background {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(.primary.opacity(0.08))
-        }
-    }
-
-    private func changeValue(by amount: Int) {
-        value = min(
-            range.upperBound,
-            max(range.lowerBound, value + amount)
-        )
-    }
-}
-
-// MARK: - Circular Time Input
-
-private struct CircularTimeInput: View {
-    @Binding var value: Int
-
-    let range: ClosedRange<Int>
-    let tint: Color
-
-    @State private var isDragging = false
-    @State private var isEditing = false
-    @State private var inputText = ""
-
-    @FocusState private var inputIsFocused: Bool
-
-    private let lineWidth: CGFloat = 9
-    private let dialInset: CGFloat = 8
-
-    private var progress: Double {
-        let span = range.upperBound - range.lowerBound
-
-        guard span > 0 else {
-            return 0
-        }
-
-        return Double(value - range.lowerBound) / Double(span)
-    }
-
-    private var maximumInputLength: Int {
-        String(range.upperBound).count
-    }
-
-    var body: some View {
-        GeometryReader { proxy in
-            let size = min(proxy.size.width, proxy.size.height)
-            let dialSize = CGSize(width: size, height: size)
-            let radius = size / 2 - dialInset - lineWidth / 2
-            let angle = Angle.degrees(progress * 360 - 90)
-
-            ZStack {
-                dialSurface(
-                    size: size,
-                    radius: radius,
-                    angle: angle
-                )
-                .contentShape(Circle())
-                .gesture(dragGesture(in: dialSize))
-
-                centerEditor
-            }
-            .frame(width: size, height: size)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Timer duration")
-            .accessibilityValue("\(value) minutes")
-            .accessibilityAdjustableAction { direction in
-                switch direction {
-                case .increment:
-                    changeValue(by: 1)
-
-                case .decrement:
-                    changeValue(by: -1)
-
-                @unknown default:
-                    break
-                }
-            }
-        }
-    }
-
-    // MARK: Dial appearance
-
-    private func dialSurface(
-        size: CGFloat,
-        radius: CGFloat,
-        angle: Angle
-    ) -> some View {
-        ZStack {
-            tickMarks(size: size)
-
-            Circle()
-                .stroke(
-                    Color.primary.opacity(0.08),
-                    style: StrokeStyle(
-                        lineWidth: lineWidth,
-                        lineCap: .round
-                    )
-                )
-                .padding(dialInset)
-
-            Circle()
-                .trim(
-                    from: 0,
-                    to: max(progress, 0.001)
-                )
-                .stroke(
-                    AngularGradient(
-                        colors: [
-                            tint.opacity(0.45),
-                            tint
-                        ],
-                        center: .center,
-                        startAngle: .degrees(-90),
-                        endAngle: .degrees(270)
-                    ),
-                    style: StrokeStyle(
-                        lineWidth: lineWidth,
-                        lineCap: .round
-                    )
-                )
-                .rotationEffect(.degrees(-90))
-                .padding(dialInset)
-                .animation(
-                    isDragging ? nil : .snappy(duration: 0.2),
-                    value: value
-                )
-
-            knob(
-                radius: radius,
-                angle: angle
-            )
-        }
-    }
-
-    private func tickMarks(size: CGFloat) -> some View {
-        let tickRadius = size / 2 - 1
-
-        return ZStack {
-            ForEach(0..<24, id: \.self) { index in
-                Capsule()
-                    .fill(
-                        index % 6 == 0
-                            ? Color.primary.opacity(0.25)
-                            : Color.primary.opacity(0.09)
-                    )
-                    .frame(
-                        width: index % 6 == 0 ? 2 : 1,
-                        height: index % 6 == 0 ? 5 : 3
-                    )
-                    .offset(y: -tickRadius + 3)
-                    .rotationEffect(.degrees(Double(index) * 15))
-            }
-        }
-    }
-
-    private func knob(
-        radius: CGFloat,
-        angle: Angle
-    ) -> some View {
-        let radians = angle.radians
-        let x = cos(radians) * radius
-        let y = sin(radians) * radius
-
-        return Circle()
-            .fill(Color(nsColor: .windowBackgroundColor))
-            .frame(width: 17, height: 17)
-            .overlay {
-                Circle()
-                    .stroke(tint, lineWidth: 4)
-            }
-            .shadow(
-                color: .black.opacity(0.18),
-                radius: 4,
-                y: 2
-            )
-            .offset(x: x, y: y)
-            .animation(
-                isDragging ? nil : .snappy(duration: 0.2),
-                value: value
-            )
-    }
-
-    // MARK: Center editor
-
-    private var centerEditor: some View {
-        VStack(spacing: -1) {
-            if isEditing {
-                TextField("", text: $inputText)
-                    .textFieldStyle(.plain)
-                    .font(
-                        .system(
-                            size: 28,
-                            weight: .semibold,
-                            design: .rounded
-                        )
-                    )
-                    .monospacedDigit()
-                    .multilineTextAlignment(.center)
-                    .frame(width: 58)
-                    .focused($inputIsFocused)
-                    .onChange(of: inputText) { _, newValue in
-                        sanitizeInput(newValue)
-                    }
-                    .onSubmit {
-                        commitInput()
-                    }
-                    .onExitCommand {
-                        cancelInput()
-                    }
-                    .onChange(of: inputIsFocused) { _, focused in
-                        if !focused && isEditing {
-                            commitInput()
-                        }
-                    }
-            } else {
-                Text("\(value)")
-                    .font(
-                        .system(
-                            size: 28,
-                            weight: .semibold,
-                            design: .rounded
-                        )
-                    )
-                    .monospacedDigit()
-                    .contentTransition(
-                        .numericText(value: Double(value))
-                    )
-                    .contentShape(Rectangle())
-                    .onTapGesture(count: 2) {
-                        beginEditing()
-                    }
-                    .help("Double-click to enter a duration")
-            }
-
-            Text("MIN")
-                .font(
-                    .system(
-                        size: 9,
-                        weight: .bold,
-                        design: .rounded
-                    )
-                )
-                .tracking(1.2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(width: 70, height: 62)
-        .background {
-            Circle()
-                .fill(
-                    isEditing
-                        ? Color(nsColor: .controlBackgroundColor)
-                        : Color.clear
-                )
-        }
-    }
-
-    // MARK: Text input
-
-    private func beginEditing() {
-        inputText = String(value)
-        isEditing = true
-
-        DispatchQueue.main.async {
-            inputIsFocused = true
-        }
-    }
-
-    private func sanitizeInput(_ newValue: String) {
-        let asciiDigits = newValue.filter {
-            "0123456789".contains($0)
-        }
-
-        let limitedDigits = String(
-            asciiDigits.prefix(maximumInputLength)
-        )
-
-        if limitedDigits != newValue {
-            inputText = limitedDigits
-        }
-    }
-
-    private func commitInput() {
-        guard
-            !inputText.isEmpty,
-            let enteredValue = Int(inputText)
-        else {
-            cancelInput()
-            return
-        }
-
-        value = min(
-            range.upperBound,
-            max(range.lowerBound, enteredValue)
-        )
-
-        inputText = String(value)
-        isEditing = false
-        inputIsFocused = false
-    }
-
-    private func cancelInput() {
-        inputText = String(value)
-        isEditing = false
-        inputIsFocused = false
-    }
-
-    // MARK: Dial interaction
-
-    private func dragGesture(in size: CGSize) -> some Gesture {
-        DragGesture(minimumDistance: 3)
-            .onChanged { gesture in
-                guard !isEditing else {
-                    return
-                }
-
-                isDragging = true
-
-                updateValue(
-                    from: gesture.location,
-                    in: size
-                )
-            }
-            .onEnded { gesture in
-                guard !isEditing else {
-                    return
-                }
-
-                updateValue(
-                    from: gesture.location,
-                    in: size
-                )
-
-                isDragging = false
-            }
-    }
-
-    private func updateValue(
-        from location: CGPoint,
-        in size: CGSize
-    ) {
-        let center = CGPoint(
-            x: size.width / 2,
-            y: size.height / 2
-        )
-
-        let deltaX = location.x - center.x
-        let deltaY = location.y - center.y
-
-        var degrees = atan2(deltaY, deltaX) * 180 / .pi
-        degrees += 90
-
-        if degrees < 0 {
-            degrees += 360
-        }
-
-        let rawProgress = degrees / 360
-        let span = range.upperBound - range.lowerBound
-
-        let calculatedValue =
-            Double(range.lowerBound)
-            + rawProgress * Double(span)
-
-        value = min(
-            range.upperBound,
-            max(range.lowerBound, Int(calculatedValue.rounded()))
-        )
-    }
-
-    private func changeValue(by amount: Int) {
-        value = min(
-            range.upperBound,
-            max(range.lowerBound, value + amount)
-        )
     }
 }
 
@@ -1170,62 +370,6 @@ private struct ShortcutRecorder: View {
             isRecording = false
             // Registers the new shortcut straight away, so globalShortcutWorks is up to date.
             AppDelegate.shared?.setGlobalShortcutSuspended(false)
-        }
-    }
-}
-
-// MARK: - Supporting Views
-
-private struct DialButton: View {
-    let systemImage: String
-    let disabled: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 10, weight: .bold))
-                .frame(width: 22, height: 22)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .background {
-            Circle()
-                .fill(
-                    Color.primary.opacity(
-                        disabled ? 0.035 : 0.07
-                    )
-                )
-        }
-        .foregroundStyle(
-            disabled ? .tertiary : .primary
-        )
-        .disabled(disabled)
-    }
-}
-
-private struct SettingsSection<Content: View>: View {
-    let title: String
-    let systemImage: String
-    let content: Content
-
-    init(
-        title: String,
-        systemImage: String,
-        @ViewBuilder content: () -> Content
-    ) {
-        self.title = title
-        self.systemImage = systemImage
-        self.content = content()
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label(title, systemImage: systemImage)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            content
         }
     }
 }

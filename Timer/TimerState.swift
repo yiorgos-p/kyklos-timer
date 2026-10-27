@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import AppKit
 
 enum TimerState {
     case running
@@ -14,6 +15,35 @@ enum TimerState {
     case stopped
     /// The countdown reached zero and is now counting overtime until the next phase is started.
     case finished
+}
+
+/// Anchor's colours: harbour blue for focus, sea green and indigo for breaks, coral when time is up.
+/// The dark variants are lighter so they stand out on a dark window but still carry white text.
+enum Palette {
+    static let focus = dynamic(light: 0x23507A, dark: 0x3D8BDB)
+    static let shortBreak = dynamic(light: 0x237A64, dark: 0x2FA383)
+    static let longBreak = dynamic(light: 0x4A4CA8, dark: 0x7173E0)
+    static let timesUp = dynamic(light: 0xD9472F, dark: 0xEF5F47)
+
+    static var timesUpColor: Color {
+        Color(nsColor: timesUp)
+    }
+
+    private static func dynamic(light: Int, dark: Int) -> NSColor {
+        NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            return rgb(isDark ? dark : light)
+        }
+    }
+
+    private static func rgb(_ hex: Int) -> NSColor {
+        NSColor(
+            srgbRed: CGFloat((hex >> 16) & 0xFF) / 255,
+            green: CGFloat((hex >> 8) & 0xFF) / 255,
+            blue: CGFloat(hex & 0xFF) / 255,
+            alpha: 1
+        )
+    }
 }
 
 enum TimerPhase: CaseIterable {
@@ -67,13 +97,17 @@ enum TimerPhase: CaseIterable {
     }
 
     var tint: Color {
+        Color(nsColor: nsTint)
+    }
+
+    var nsTint: NSColor {
         switch self {
         case .focus:
-            return .accentColor
+            return Palette.focus
         case .shortBreak:
-            return .green
+            return Palette.shortBreak
         case .longBreak:
-            return .indigo
+            return Palette.longBreak
         }
     }
 

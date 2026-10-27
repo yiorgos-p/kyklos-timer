@@ -12,7 +12,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     var popover: NSPopover!
     var viewModel: TimerViewModel!
     var timerHostingController: NSHostingController<ContentView>!
-    private var popoverResizeTimer: Timer?
     var cancellables: Set<AnyCancellable> = []
     var mainWindowController: NSWindowController?
     private var globalShortcut: GlobalHotKey?
@@ -120,7 +119,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
         if let button = statusItem.button {
             if popover.isShown {
-                stopPopoverResizeAnimation()
                 popover.performClose(sender)
             } else {
                 popover.contentSize = timerHostingController.sizeThatFits(
@@ -152,7 +150,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
             ]
             if viewModel.timerState == .finished {
-                attributes[.foregroundColor] = NSColor.systemOrange
+                attributes[.foregroundColor] = Palette.timesUp
             }
             let style = UserDefaults.standard.string(forKey: "menuBarStyle") ?? "time"
 
@@ -512,85 +510,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         panel.setContentSize(size)
 
         return panel
-    }
-
-    // MARK: - Popover resizing
-
-    func animatePopoverToFitContent() {
-        guard
-            popover.isShown,
-            let timerHostingController
-        else {
-            return
-        }
-
-        DispatchQueue.main.async { [weak self] in
-            guard
-                let self,
-                self.popover.isShown
-            else {
-                return
-            }
-
-            let targetSize = timerHostingController.sizeThatFits(
-                in: NSSize(width: 360, height: 10_000)
-            )
-
-            guard targetSize != self.popover.contentSize else {
-                self.stopPopoverResizeAnimation()
-                return
-            }
-
-            self.popoverResizeTimer?.invalidate()
-            self.popover.animates = false
-
-            let startingSize = self.popover.contentSize
-            let startTime = Date.timeIntervalSinceReferenceDate
-            let duration = 0.42
-
-            let resizeTimer = Timer(
-                timeInterval: 1.0 / 60.0,
-                repeats: true
-            ) { [weak self] timer in
-                guard
-                    let self,
-                    self.popover.isShown
-                else {
-                    timer.invalidate()
-                    self?.popover.animates = true
-                    return
-                }
-
-                let elapsed = Date.timeIntervalSinceReferenceDate - startTime
-                let progress = min(max(elapsed / duration, 0), 1)
-                let easedProgress = progress * progress * (3 - 2 * progress)
-
-                self.popover.contentSize = NSSize(
-                    width: startingSize.width
-                        + (targetSize.width - startingSize.width)
-                        * easedProgress,
-                    height: startingSize.height
-                        + (targetSize.height - startingSize.height)
-                        * easedProgress
-                )
-
-                if progress >= 1 {
-                    timer.invalidate()
-                    self.popover.contentSize = targetSize
-                    self.popover.animates = true
-                    self.popoverResizeTimer = nil
-                }
-            }
-
-            self.popoverResizeTimer = resizeTimer
-            RunLoop.main.add(resizeTimer, forMode: .common)
-        }
-    }
-
-    private func stopPopoverResizeAnimation() {
-        popoverResizeTimer?.invalidate()
-        popoverResizeTimer = nil
-        popover?.animates = true
     }
 }
 
