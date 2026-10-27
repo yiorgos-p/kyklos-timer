@@ -4,14 +4,13 @@ import Combine
 import UserNotifications
 import Carbon.HIToolbox
 
-class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate, NSPopoverDelegate, NSWindowDelegate {
     /// SwiftUI installs its own object as NSApp.delegate, so views reach this one through here instead.
     private(set) static weak var shared: AppDelegate?
 
     var statusItem: NSStatusItem!
     var popover: NSPopover!
     var viewModel: TimerViewModel!
-    var timerHostingController: NSHostingController<ContentView>!
     var cancellables: Set<AnyCancellable> = []
     var mainWindowController: NSWindowController?
     private var globalShortcut: GlobalHotKey?
@@ -42,19 +41,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             button.action = #selector(togglePopover(_:))
         }
 
-        // Create the popover
-        timerHostingController = NSHostingController(
-            rootView: ContentView(viewModel: viewModel)
-        )
-        timerHostingController.sizingOptions = []
-
+        // The popover's content is built each time it opens (see togglePopover), not kept around.
         popover = NSPopover()
         popover.animates = true
-        popover.contentViewController = timerHostingController
-        popover.contentSize = timerHostingController.sizeThatFits(
-            in: NSSize(width: 360, height: 10_000)
-        )
         popover.behavior = .transient
+        popover.delegate = self
 
         // Keep the menu bar title in sync with the timer
         Publishers.CombineLatest4(
@@ -121,14 +112,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                     fadeOut(window)
                 }
 
-                popover.contentSize = timerHostingController.sizeThatFits(
-                    in: NSSize(width: 360, height: 10_000)
-                )
+                let hostingController = NSHostingController(rootView: ContentView(viewModel: viewModel))
+                hostingController.sizingOptions = []
+                popover.contentViewController = hostingController
+                popover.contentSize = hostingController.sizeThatFits(in: NSSize(width: 360, height: 10_000))
                 popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
                 popover.contentViewController?.view.window?.becomeKey()
                 clearInitialFocus(in: popover.contentViewController?.view.window)
             }
         }
+    }
+
+    /// Lets go of the popover's interface once it's closed, so it doesn't sit in memory until next time.
+    func popoverDidClose(_ notification: Notification) {
+        popover.contentViewController = nil
     }
 
     func updateStatusBarTitle() {
@@ -366,6 +363,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Timer"
         window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
+        window.delegate = self
         window.collectionBehavior = [.fullScreenAuxiliary]
         window.setContentSize(fittingWindowSize(for: hostingController))
         window.setFrameAutosaveName("MainWindow")
@@ -379,8 +377,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
         let controller = NSWindowController(window: window)
         mainWindowController = controller
+        window.alphaValue = 0
         controller.showWindow(nil)
         window.orderFrontRegardless()
+        fadeIn(window)
         clearInitialFocus(in: window)
     }
 
@@ -395,11 +395,34 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             context.duration = 0.2
             window.animator().alphaValue = 0
         } completionHandler: { [weak self] in
-            guard self?.windowFade == fade else {
+            guard let self, self.windowFade == fade else {
                 return
             }
-            window.orderOut(nil)
-            window.alphaValue = 1
+            self.discardMainWindow(window)
+        }
+    }
+
+    /// A hidden window is thrown away rather than kept, so its interface doesn't sit in memory.
+    /// showMainWindow builds a fresh one, and the saved frame puts it back where it was.
+    private func discardMainWindow(_ window: NSWindow) {
+        guard mainWindowController?.window === window else {
+            return
+        }
+
+        window.delegate = nil
+        window.close()
+        mainWindowController = nil
+    }
+
+    // The close button: the window is gone either way, so let it go entirely.
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else {
+            return
+        }
+
+        // Wait a turn so AppKit has finished closing it first.
+        DispatchQueue.main.async { [weak self] in
+            self?.discardMainWindow(window)
         }
     }
 
@@ -486,7 +509,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         if let popover, popover.isShown {
             popover.performClose(nil)
         }
-        mainWindowController?.window?.orderOut(nil)
+        if let window = mainWindowController?.window {
+            discardMainWindow(window)
+        }
 
         let panel = minimalPanel ?? makeMinimalPanel()
         minimalPanel = panel
