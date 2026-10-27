@@ -60,7 +60,10 @@ struct ContentView: View {
 
             taskField
 
-            primaryControls
+            // In mouse mode the popover's row would be empty.
+            if !useMouseControls || presentation == .window {
+                primaryControls
+            }
 
             if presentation == .popover {
                 footerControls
@@ -124,29 +127,13 @@ struct ContentView: View {
         }
     }
 
-    /// The window toolbar's buttons on the right.
-    @ViewBuilder
+    /// The pin in the window toolbar's right corner. Settings sits next to Reset instead,
+    /// because a narrow toolbar would hide extra buttons behind an overflow arrow.
     private var toolbarActions: some View {
-        if minimalMode != "off" {
-            Button {
-                appDelegate?.showMinimalTimer()
-            } label: {
-                Label("Minimal", systemImage: "capsule")
-            }
-            .help("Switch to the small floating timer")
-        }
-
         Toggle(isOn: $keepWindowOnTop) {
-            Label("On Top", systemImage: "pin")
+            Label("On Top", systemImage: keepWindowOnTop ? "pin.fill" : "pin")
         }
         .help(keepWindowOnTop ? "Stop keeping this window above other windows" : "Keep this window above other windows")
-
-        Button {
-            openAnchorSettings()
-        } label: {
-            Label("Settings", systemImage: "gearshape")
-        }
-        .help("Open Anchor Settings")
     }
 
     // MARK: - Dial
@@ -409,11 +396,12 @@ struct ContentView: View {
 
     // MARK: - Primary controls
 
-    @ViewBuilder
+    /// Start and Reset (not in mouse mode), plus Settings and the Minimal Mode button in the window,
+    /// which has no footer.
     private var primaryControls: some View {
-        if !useMouseControls {
-            GlassGroup {
-                HStack(spacing: 10) {
+        GlassGroup {
+            HStack(spacing: 10) {
+                if !useMouseControls {
                     Button(action: viewModel.toggleTimer) {
                         Label(primaryActionTitle, systemImage: primaryButtonIcon)
                             .lineLimit(1)
@@ -432,9 +420,32 @@ struct ContentView: View {
                     }
                     .glassButtonStyle()
                 }
-                .controlSize(.large)
+
+                if presentation == .window {
+                    if minimalMode != "off" {
+                        iconButton("capsule", help: "Switch to the small floating timer") {
+                            appDelegate?.showMinimalTimer()
+                        }
+                    }
+
+                    iconButton("gearshape", help: "Open Anchor Settings") {
+                        openAnchorSettings()
+                    }
+                }
             }
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
         }
+    }
+
+    private func iconButton(_ systemImage: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+        }
+        .glassButtonStyle()
+        .buttonBorderShape(.circle)
+        .help(help)
+        .accessibilityLabel(help)
     }
 
     // MARK: - Footer
@@ -466,6 +477,7 @@ struct ContentView: View {
             .help("Open Anchor Settings")
         }
         .glassButtonStyle()
+        .buttonBorderShape(.capsule)
     }
 
     private func openAnchorSettings() {
@@ -619,6 +631,10 @@ private struct RingHitArea: Shape {
 struct MinimalTimerView: View {
     @ObservedObject var viewModel: TimerViewModel
 
+    @State private var isEditingMinutes = false
+    @State private var minutesText = ""
+    @FocusState private var minutesFieldFocused: Bool
+
     static let size = CGSize(width: 260, height: 44)
 
     var body: some View {
@@ -636,22 +652,20 @@ struct MinimalTimerView: View {
                         animation: viewModel.timerState == .running ? .linear(duration: 1) : .snappy(duration: 0.3)
                     )
                     .frame(width: 18, height: 18)
+                    // Clicks fall through to the drag area underneath.
+                    .allowsHitTesting(false)
 
-                    Text(viewModel.displayTime)
-                        .font(.system(size: 17, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(timeColor)
+                    time
 
-                    Text(caption)
+                    Text(isEditingMinutes ? "min" : caption)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(viewModel.timerState == .finished ? .orange : .secondary)
                         .lineLimit(1)
                         .truncationMode(.tail)
+                        .allowsHitTesting(false)
 
                     Spacer(minLength: 0)
                 }
-                // Clicks on the text fall through to the drag area underneath.
-                .allowsHitTesting(false)
 
                 actionButton
             }
@@ -659,6 +673,69 @@ struct MinimalTimerView: View {
             .padding(.trailing, 6)
         }
         .frame(width: Self.size.width, height: Self.size.height)
+        .onChange(of: viewModel.timerState) { _, state in
+            if state != .stopped {
+                isEditingMinutes = false
+            }
+        }
+    }
+
+    /// The time; while stopped, click it to type a new length (handy in Always mode, where the pill is all there is).
+    @ViewBuilder
+    private var time: some View {
+        if isEditingMinutes {
+            TextField("", text: $minutesText)
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .multilineTextAlignment(.center)
+                .frame(width: 46)
+                .focused($minutesFieldFocused)
+                .onChange(of: minutesText) { _, newValue in
+                    let digits = String(newValue.filter { "0123456789".contains($0) }.prefix(2))
+                    if digits != newValue {
+                        minutesText = digits
+                    }
+                }
+                .onSubmit(commitMinutes)
+                .onExitCommand {
+                    isEditingMinutes = false
+                }
+                .onChange(of: minutesFieldFocused) { _, focused in
+                    if !focused, isEditingMinutes {
+                        commitMinutes()
+                    }
+                }
+        } else {
+            Text(viewModel.displayTime)
+                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(timeColor)
+                .onTapGesture {
+                    beginEditingMinutes()
+                }
+                .allowsHitTesting(viewModel.timerState == .stopped)
+                .help("Click to type the minutes")
+        }
+    }
+
+    private func beginEditingMinutes() {
+        minutesText = String(Int(viewModel.timerDuration))
+        isEditingMinutes = true
+        // The pill doesn't take the keyboard on its own, so hand it over for typing.
+        AppDelegate.shared?.makeMinimalTimerKey()
+
+        DispatchQueue.main.async {
+            minutesFieldFocused = true
+        }
+    }
+
+    private func commitMinutes() {
+        if let minutes = Int(minutesText) {
+            viewModel.setDuration(minutes: minutes)
+        }
+
+        isEditingMinutes = false
     }
 
     @ViewBuilder

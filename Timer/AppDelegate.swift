@@ -154,6 +154,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             }
             let style = UserDefaults.standard.string(forKey: "menuBarStyle") ?? "time"
 
+            // "off" hides the menu bar item; the Dock icon then stays on so Anchor can still be reached.
+            statusItem.isVisible = style != "off"
+            if style == "off", popover.isShown {
+                popover.performClose(nil)
+            }
+
             button.image = style == "time" ? nil : statusCircleImage()
             button.imagePosition = .imageLeading
             button.attributedTitle = NSAttributedString(
@@ -244,7 +250,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
         lastMinimalMode = mode
 
-        let showInDock = UserDefaults.standard.object(forKey: "showInDock") as? Bool ?? true
+        // With the menu bar item off, the Dock icon is the way back in, so it stays on whatever the setting says.
+        let menuBarOff = UserDefaults.standard.string(forKey: "menuBarStyle") == "off"
+        let showInDock = menuBarOff || UserDefaults.standard.object(forKey: "showInDock") as? Bool ?? true
 
         // Only act on a real change: this runs on every settings write, including each keystroke in the task field.
         guard showInDock != showsInDock else {
@@ -442,6 +450,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         let panel = minimalPanel ?? makeMinimalPanel()
         minimalPanel = panel
         panel.orderFrontRegardless()
+    }
+
+    /// The pill doesn't take the keyboard by itself; this hands it over while the minutes are typed.
+    func makeMinimalTimerKey() {
+        minimalPanel?.makeKey()
     }
 
     private func timerStateDidChange() {

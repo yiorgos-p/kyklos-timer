@@ -87,15 +87,22 @@ private struct GeneralSettings: View {
                     Text("Time").tag("time")
                     Text("Circle").tag("circle")
                     Text("Both").tag("both")
+                    Text("Off").tag("off")
                 } label: {
                     Text("Menu Bar")
                     Text("The circle empties as time runs out: green, then yellow with a third left, red near the end.")
                 }
 
-                Toggle(isOn: $showInDock) {
+                // With the menu bar item off, the Dock icon is the only way back in, so it can't be turned off too.
+                Toggle(isOn: menuBarStyle == "off" ? .constant(true) : $showInDock) {
                     Text("Show in Dock")
-                    Text("When off, Anchor lives in the menu bar and its window.")
+                    Text(
+                        menuBarStyle == "off"
+                            ? "Stays on while the menu bar item is off, so you can always get back to Anchor."
+                            : "When off, Anchor lives in the menu bar and its window."
+                    )
                 }
+                .disabled(menuBarStyle == "off")
             }
 
             Section("System") {
