@@ -17,6 +17,7 @@ Anchor is based on [Cloud](https://github.com/YYUUGGOO/Cloud) by David.
 - A global shortcut to start or pause from any app: ⌃⌥A, or one you pick
 - Optional mouse mode: single-click the timer to start or pause, and triple-click to reset
 - Optional Zen Mode that hides setup controls while the timer is running
+- Optional Minimal Mode: a small floating pill with the time, the task and one button, shown during a session or all the time
 - A window that can stay on top of other windows
 - Light and Dark Mode, following your Mac or set by hand
 - Launch at Login support

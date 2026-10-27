@@ -16,6 +16,7 @@ struct ContentView: View {
     @AppStorage("useMouseControls") private var useMouseControls = false
     @AppStorage("zenMode") private var zenMode = false
     @AppStorage("keepWindowOnTop") private var keepWindowOnTop = false
+    @AppStorage("minimalMode") private var minimalMode = "off"
     // Read through TimerPhase so the value is clamped; stored here only so the dots redraw when it changes.
     @AppStorage("sessionsPerLongBreak") private var savedSessionsPerLongBreak = 4
 
@@ -369,6 +370,16 @@ struct ContentView: View {
                 .modifier(SecondaryGlassButtonModifier())
 
             case .window:
+                if minimalMode != "off" {
+                    Button {
+                        appDelegate?.showMinimalTimer()
+                    } label: {
+                        Image(systemName: "capsule")
+                    }
+                    .help("Switch to the small floating timer")
+                    .modifier(SecondaryGlassButtonModifier())
+                }
+
                 Button {
                     keepWindowOnTop.toggle()
                     appDelegate?.applyWindowLevel()
@@ -487,9 +498,8 @@ private struct ProgressRing<Content: View>: View {
     let progress: Double
     let tint: Color
     let animation: Animation
+    var lineWidth: CGFloat = 10
     @ViewBuilder let content: Content
-
-    private let lineWidth: CGFloat = 10
 
     var body: some View {
         ZStack {
@@ -508,6 +518,143 @@ private struct ProgressRing<Content: View>: View {
             content
         }
         .padding(lineWidth / 2)
+    }
+}
+
+// MARK: - Minimal timer
+
+/// The small floating pill: ring, time, task and one button. Drag it anywhere; double-click for the full window.
+struct MinimalTimerView: View {
+    @ObservedObject var viewModel: TimerViewModel
+
+    static let size = CGSize(width: 260, height: 44)
+
+    var body: some View {
+        ZStack {
+            WindowDragArea {
+                AppDelegate.shared?.showMainWindow()
+            }
+
+            HStack(spacing: 10) {
+                HStack(spacing: 9) {
+                    ProgressRing(
+                        progress: viewModel.timerState == .finished ? 1 : viewModel.progress,
+                        tint: tint,
+                        animation: viewModel.timerState == .running ? .linear(duration: 1) : .snappy(duration: 0.3),
+                        lineWidth: 3
+                    ) {
+                        EmptyView()
+                    }
+                    .frame(width: 18, height: 18)
+
+                    Text(viewModel.displayTime)
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(timeColor)
+
+                    Text(caption)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(viewModel.timerState == .finished ? .orange : .secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+
+                    Spacer(minLength: 0)
+                }
+                // Clicks on the text fall through to the drag area underneath.
+                .allowsHitTesting(false)
+
+                actionButton
+            }
+            .padding(.leading, 14)
+            .padding(.trailing, 6)
+        }
+        .frame(width: Self.size.width, height: Self.size.height)
+    }
+
+    @ViewBuilder
+    private var actionButton: some View {
+        if viewModel.timerState == .finished {
+            Button {
+                viewModel.startNextPhase()
+            } label: {
+                Label(viewModel.nextPhase == .focus ? "Focus" : "Break", systemImage: "play.fill")
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .tint(viewModel.nextPhase.tint)
+            .help("Start \(viewModel.nextPhase.title)")
+        } else {
+            Button(action: viewModel.toggleTimer) {
+                Image(systemName: viewModel.timerState == .running ? "pause.fill" : "play.fill")
+                    .font(.system(size: 13, weight: .bold))
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(Color.primary.opacity(0.08)))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .help(viewModel.timerState == .running ? "Pause" : "Start")
+        }
+    }
+
+    private var tint: Color {
+        viewModel.timerState == .finished ? .orange : viewModel.phase.tint
+    }
+
+    private var timeColor: Color {
+        switch viewModel.timerState {
+        case .finished:
+            return .orange
+        case .paused:
+            return .secondary
+        case .running, .stopped:
+            return .primary
+        }
+    }
+
+    private var caption: String {
+        let task = viewModel.task.trimmingCharacters(in: .whitespaces)
+
+        switch viewModel.timerState {
+        case .finished:
+            return "Time's up"
+        case .paused where task.isEmpty:
+            return "Paused"
+        default:
+            return task.isEmpty ? viewModel.phase.title : task
+        }
+    }
+}
+
+/// Moves the window when dragged and reports double-clicks; SwiftUI has no window drag gesture before macOS 15.
+private struct WindowDragArea: NSViewRepresentable {
+    let onDoubleClick: () -> Void
+
+    func makeNSView(context: Context) -> WindowDragNSView {
+        let view = WindowDragNSView()
+        view.onDoubleClick = onDoubleClick
+        view.toolTip = "Drag to move. Double-click for the full window."
+        return view
+    }
+
+    func updateNSView(_ nsView: WindowDragNSView, context: Context) {
+        nsView.onDoubleClick = onDoubleClick
+    }
+}
+
+private final class WindowDragNSView: NSView {
+    var onDoubleClick: (() -> Void)?
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2 {
+            onDoubleClick?()
+        } else {
+            window?.performDrag(with: event)
+        }
     }
 }
 

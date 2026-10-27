@@ -14,6 +14,7 @@ struct TimerSettingsView: View {
     @AppStorage("menuBarStyle") private var menuBarStyle = "time"
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("repeatAlarm") private var repeatAlarm = true
+    @AppStorage("minimalMode") private var minimalMode = "off"
     @AppStorage("sessionsPerLongBreak") private var sessionsPerLongBreak = 4
     @AppStorage("sessionsToday") private var sessionsToday = 0
     @AppStorage("sessionsDay") private var sessionsDay = ""
@@ -284,6 +285,37 @@ struct TimerSettingsView: View {
                     Toggle("Zen Mode", isOn: $zenMode)
                         .labelsHidden()
                         .help("Hide setup controls while a timer is active.")
+                }
+                .padding(14)
+
+                Divider()
+                    .padding(.leading, 50)
+
+                HStack(spacing: 12) {
+                    Image(systemName: "capsule")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Minimal Mode")
+                            .font(.body)
+
+                        Text("A small timer that floats above other apps, shown during a session or all the time. Double-click it for the full window.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Picker("Minimal Mode", selection: $minimalMode) {
+                        Text("Off").tag("off")
+                        Text("On Start").tag("start")
+                        Text("Always").tag("always")
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 220)
                 }
                 .padding(14)
 

@@ -22,6 +22,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     private(set) var globalShortcutWorks = true
     private var showsInDock: Bool?
     private var presetMinutes: [TimerPhase: Int]?
+    private var minimalPanel: NSPanel?
+    private var lastMinimalMode: String?
+    private var lastTimerState = TimerState.stopped
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         Self.shared = self
@@ -76,12 +79,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             }
             .store(in: &cancellables)
 
-        showMainWindow()
+        // Switch to and from the minimal timer as sessions start and stop.
+        viewModel.$timerState
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.timerStateDidChange()
+            }
+            .store(in: &cancellables)
+
+        if minimalMode == "always" {
+            showMinimalTimer()
+        } else {
+            showMainWindow()
+        }
     }
 
-    // Clicking the Dock icon brings the window back after it was closed.
+    // Clicking the Dock icon brings the window back after it was closed (the floating pill doesn't count).
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag {
+        if mainWindowController?.window?.isVisible != true {
             showMainWindow()
         }
         return true
@@ -215,6 +230,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
         presetMinutes = presets
 
+        // Minimal Mode changed in Settings: switch now rather than at the next session.
+        let mode = minimalMode
+        if let lastMinimalMode, mode != lastMinimalMode {
+            switch mode {
+            case "always":
+                showMinimalTimer()
+            case "start" where viewModel.timerState != .stopped:
+                showMinimalTimer()
+            case "off" where isShowingMinimalTimer:
+                showMainWindow()
+            default:
+                break
+            }
+        }
+        lastMinimalMode = mode
+
         let showInDock = UserDefaults.standard.object(forKey: "showInDock") as? Bool ?? true
 
         // Only act on a real change: this runs on every settings write, including each keystroke in the task field.
@@ -291,6 +322,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         if let popover, popover.isShown {
             popover.performClose(nil)
         }
+        minimalPanel?.orderOut(nil)
 
         NSApp.activate(ignoringOtherApps: true)
 
@@ -389,6 +421,99 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         window.level = keepOnTop ? .floating : .normal
     }
 
+    // MARK: - Minimal timer
+
+    /// "off", "start" (the pill replaces the window while a session is on) or "always".
+    private var minimalMode: String {
+        UserDefaults.standard.string(forKey: "minimalMode") ?? "off"
+    }
+
+    private var isShowingMinimalTimer: Bool {
+        minimalPanel?.isVisible == true
+    }
+
+    /// Hides the window and shows the small floating pill instead.
+    func showMinimalTimer() {
+        if let popover, popover.isShown {
+            popover.performClose(nil)
+        }
+        mainWindowController?.window?.orderOut(nil)
+
+        let panel = minimalPanel ?? makeMinimalPanel()
+        minimalPanel = panel
+        panel.orderFrontRegardless()
+    }
+
+    private func timerStateDidChange() {
+        // Read the current state rather than each published value: going from "time's up" to the next phase
+        // passes through .stopped for an instant, which shouldn't flash the full window.
+        let state = viewModel.timerState
+        let previous = lastTimerState
+        lastTimerState = state
+
+        guard state != previous else {
+            return
+        }
+
+        if state == .running, previous == .stopped || previous == .finished, minimalMode != "off" {
+            showMinimalTimer()
+        } else if state == .stopped, minimalMode == "start", isShowingMinimalTimer {
+            showMainWindow()
+        }
+    }
+
+    private func makeMinimalPanel() -> NSPanel {
+        let size = MinimalTimerView.size
+        let panel = MinimalPanel(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.isFloatingPanel = true
+        panel.level = .floating
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        // Clicking its button shouldn't take the keyboard away from the app being worked in.
+        panel.becomesKeyOnlyIfNeeded = true
+        panel.hidesOnDeactivate = false
+        panel.isReleasedWhenClosed = false
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = true
+
+        let hostingView = FirstMouseHostingView(rootView: MinimalTimerView(viewModel: viewModel))
+        let cornerRadius = size.height / 2
+
+        if #available(macOS 26.0, *) {
+            let glass = NSGlassEffectView()
+            glass.cornerRadius = cornerRadius
+            glass.contentView = hostingView
+            panel.contentView = glass
+        } else {
+            let background = NSVisualEffectView()
+            background.material = .popover
+            background.blendingMode = .behindWindow
+            background.state = .active
+            background.wantsLayer = true
+            background.layer?.cornerRadius = cornerRadius
+            background.layer?.masksToBounds = true
+            hostingView.frame = background.bounds
+            hostingView.autoresizingMask = [.width, .height]
+            background.addSubview(hostingView)
+            panel.contentView = background
+        }
+
+        panel.setFrameAutosaveName("MinimalTimer")
+        if !panel.setFrameUsingName("MinimalTimer") {
+            // First time: the top-right corner, just under the menu bar.
+            let screen = NSScreen.main?.visibleFrame ?? .zero
+            panel.setFrameOrigin(NSPoint(x: screen.maxX - size.width - 16, y: screen.maxY - size.height - 16))
+        }
+        panel.setContentSize(size)
+
+        return panel
+    }
+
     // MARK: - Popover resizing
 
     func animatePopoverToFitContent() {
@@ -466,6 +591,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         popoverResizeTimer?.invalidate()
         popoverResizeTimer = nil
         popover?.animates = true
+    }
+}
+
+// MARK: - Minimal timer panel
+
+/// Borderless panels can't become key by default, which SwiftUI controls need to work reliably.
+private final class MinimalPanel: NSPanel {
+    override var canBecomeKey: Bool {
+        true
+    }
+}
+
+/// Lets the pill's button work on the first click, without first bringing Anchor to the front.
+private final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
     }
 }
 
