@@ -205,8 +205,9 @@ struct ContentView: View {
                 fraction: viewModel.dialFraction,
                 tint: dialTint,
                 lineWidth: 10,
-                // Drain smoothly between ticks while running; follow the drag straight away otherwise.
-                animation: viewModel.timerState == .running ? .linear(duration: 1) : nil
+                // No animation: while running the arc moves a 3,600th of a turn a second, too little to see,
+                // and animating it would redraw the dial every frame. Dragging should follow the hand directly.
+                animation: nil
             )
             .padding(Self.ringInset)
 
@@ -695,7 +696,8 @@ struct MinimalTimerView: View {
                         fraction: viewModel.dialFraction,
                         tint: tint,
                         lineWidth: 3,
-                        animation: viewModel.timerState == .running ? .linear(duration: 1) : .snappy(duration: 0.3)
+                        // Stepped once a second while running, like the big dial; animated only for jumps.
+                        animation: viewModel.timerState == .running ? nil : .snappy(duration: 0.3)
                     )
                     .frame(width: 18, height: 18)
                     // Clicks fall through to the drag area underneath.

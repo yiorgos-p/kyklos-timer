@@ -21,6 +21,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     private var showsInDock: Bool?
     private var presetMinutes: [TimerPhase: Int]?
     private var minimalPanel: NSPanel?
+    /// The menu bar circle is only redrawn when it would look different, not every second.
+    private var statusCircle: (key: String, image: NSImage)?
     private var lastMinimalMode: String?
     private var lastTimerState = TimerState.stopped
 
@@ -82,6 +84,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         } else {
             showMainWindow()
         }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        viewModel.saveTask()
     }
 
     // Clicking the Dock icon brings the window back after it was closed (the floating pill doesn't count).
@@ -188,6 +194,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             color = .systemRed
         }
 
+        // At 16 points, 64 steps around the circle is finer than the eye can tell apart.
+        let key = "\(state) \(color) \(Int((fraction * 64).rounded()))"
+        if let statusCircle, statusCircle.key == key {
+            return statusCircle.image
+        }
+
         let image = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { rect in
             let ringRect = rect.insetBy(dx: 1.5, dy: 1.5)
             let ring = NSBezierPath(ovalIn: ringRect)
@@ -214,6 +226,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             return true
         }
         image.isTemplate = false
+        statusCircle = (key, image)
         return image
     }
 
@@ -325,7 +338,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         if let popover, popover.isShown {
             popover.performClose(nil)
         }
-        minimalPanel?.orderOut(nil)
+        discardMinimalTimer()
 
         NSApp.activate(ignoringOtherApps: true)
 
@@ -516,6 +529,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         let panel = minimalPanel ?? makeMinimalPanel()
         minimalPanel = panel
         panel.orderFrontRegardless()
+    }
+
+    /// Like the window, the pill is thrown away when hidden rather than kept in memory; it's rebuilt where it was.
+    private func discardMinimalTimer() {
+        minimalPanel?.close()
+        minimalPanel = nil
     }
 
     /// The pill doesn't take the keyboard by itself; this hands it over while the minutes are typed.

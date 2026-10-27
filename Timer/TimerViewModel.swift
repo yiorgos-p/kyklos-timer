@@ -16,7 +16,7 @@ final class TimerViewModel: ObservableObject {
     @Published private(set) var completedFocusToday = 0
     @Published var task: String {
         didSet {
-            UserDefaults.standard.set(task, forKey: "currentTask")
+            scheduleTaskSave()
         }
     }
 
@@ -28,7 +28,8 @@ final class TimerViewModel: ObservableObject {
     private var tickTimer: Timer?
     private var activity: NSObjectProtocol?
     private var observers: [NSObjectProtocol] = []
-    private var audioPlayer: AVAudioPlayer?
+    private let alarm = AlarmPlayer()
+    private var pendingTaskSave: DispatchWorkItem?
     /// The minute of overtime the alarm last rang for, so each minute rings at most once.
     private var lastAlarmMinute = 0
 
@@ -42,7 +43,6 @@ final class TimerViewModel: ObservableObject {
         self.sessionLength = Int(duration) * 60
         self.task = UserDefaults.standard.string(forKey: "currentTask") ?? ""
         loadTodaysSessions()
-        prepareAlarmSound()
         observeSystemChanges()
     }
 
@@ -52,6 +52,26 @@ final class TimerViewModel: ObservableObject {
             NSWorkspace.shared.notificationCenter.removeObserver($0)
             NotificationCenter.default.removeObserver($0)
         }
+    }
+
+    // MARK: - Task
+
+    /// Saving on every key would make the app re-check all its settings each time; save once typing pauses instead.
+    private func scheduleTaskSave() {
+        pendingTaskSave?.cancel()
+
+        let save = DispatchWorkItem { [weak self] in
+            self?.saveTask()
+        }
+        pendingTaskSave = save
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: save)
+    }
+
+    /// Also called when the app quits, so the last keys typed are never lost.
+    func saveTask() {
+        pendingTaskSave?.cancel()
+        pendingTaskSave = nil
+        UserDefaults.standard.set(task, forKey: "currentTask")
     }
 
     // MARK: - Derived state
@@ -415,14 +435,14 @@ final class TimerViewModel: ObservableObject {
         try FileManager.default.copyItem(at: url, to: destination)
 
         defaults.set(url.lastPathComponent, forKey: "customAlarmName")
-        prepareAlarmSound()
+        alarm.stop()
     }
 
     func useDefaultAlarm() {
         removeCustomAlarmFile()
         UserDefaults.standard.removeObject(forKey: "customAlarmFile")
         UserDefaults.standard.removeObject(forKey: "customAlarmName")
-        prepareAlarmSound()
+        alarm.stop()
     }
 
     private func removeCustomAlarmFile() {
@@ -431,34 +451,19 @@ final class TimerViewModel: ObservableObject {
         }
     }
 
-    private func prepareAlarmSound() {
-        audioPlayer?.stop()
-        audioPlayer = nil
-
+    func playAlarmSound() {
         // The picked sound if there is one and it still opens, otherwise the built-in one.
         let candidates = [Self.customAlarmURL, Bundle.main.url(forResource: "alarm", withExtension: "mp3")]
-
-        for case let soundURL? in candidates {
-            if let player = try? AVAudioPlayer(contentsOf: soundURL) {
-                player.prepareToPlay()
-                audioPlayer = player
-                return
-            }
-        }
-    }
-
-    func playAlarmSound() {
-        audioPlayer?.currentTime = 0
-        audioPlayer?.play()
+        alarm.play(candidates.compactMap { $0 })
     }
 
     func stopAlarmSound() {
-        audioPlayer?.stop()
+        alarm.stop()
     }
 
     /// How long the current alarm sound plays, so Settings can show when a preview has finished.
     var alarmDuration: TimeInterval {
-        audioPlayer?.duration ?? 0
+        alarm.duration
     }
 
     /// Rings again at each full minute of overtime, for the first few minutes, unless turned off in Settings.
@@ -513,6 +518,41 @@ final class TimerViewModel: ObservableObject {
         UNUserNotificationCenter.current().add(
             UNNotificationRequest(identifier: "timer-finished", content: content, trigger: nil)
         )
+    }
+}
+
+/// Plays the alarm, keeping the sound loaded only while it plays. Holding a player ready all the time costs
+/// about 3.5 MB for something that rings a few times a day; loading it on demand takes a few milliseconds.
+private final class AlarmPlayer: NSObject, AVAudioPlayerDelegate {
+    private var player: AVAudioPlayer?
+
+    var duration: TimeInterval {
+        player?.duration ?? 0
+    }
+
+    /// Plays the first file that opens.
+    func play(_ urls: [URL]) {
+        stop()
+
+        for url in urls {
+            if let player = try? AVAudioPlayer(contentsOf: url) {
+                player.delegate = self
+                player.play()
+                self.player = player
+                return
+            }
+        }
+    }
+
+    func stop() {
+        player?.stop()
+        player = nil
+    }
+
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        if player === self.player {
+            self.player = nil
+        }
     }
 }
 
