@@ -37,7 +37,7 @@ struct ContentView: View {
             .modifier(
                 WindowToolbar(
                     isEnabled: presentation == .window,
-                    principal: phaseHeader(shortTitles: true),
+                    principal: phaseHeader(inToolbar: true),
                     actions: toolbarActions
                 )
             )
@@ -51,7 +51,7 @@ struct ContentView: View {
     private var content: some View {
         VStack(spacing: 16) {
             if presentation == .popover {
-                phaseHeader(shortTitles: false)
+                phaseHeader(inToolbar: false)
             }
 
             dial
@@ -107,22 +107,18 @@ struct ContentView: View {
 
     /// The phase switcher, or just the phase's name while Zen Mode hides it.
     /// The switcher keeps its space either way, so nothing jumps. The toolbar is narrow, so it uses short names.
-    private func phaseHeader(shortTitles: Bool) -> some View {
+    /// Outside a toolbar it is the large size, which macOS 26 and later draw as a capsule like the other controls.
+    private func phaseHeader(inToolbar: Bool) -> some View {
         ZStack {
-            Picker(
-                "Phase",
-                selection: Binding(
-                    get: { viewModel.phase },
-                    set: { applyPreset($0) }
-                )
-            ) {
-                ForEach(TimerPhase.allCases, id: \.self) { phase in
-                    Text(shortTitles ? phase.shortTitle : phase.title)
-                        .tag(phase)
+            Group {
+                // In the toolbar macOS picks the size; forcing one there brings back the old square selection.
+                if inToolbar {
+                    phasePicker(inToolbar: true)
+                } else {
+                    phasePicker(inToolbar: false)
+                        .controlSize(.large)
                 }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
             .opacity(shouldShowSetupControls ? 1 : 0)
             .disabled(!shouldShowSetupControls)
 
@@ -132,6 +128,23 @@ struct ContentView: View {
                     .foregroundStyle(viewModel.phase.tint)
             }
         }
+    }
+
+    private func phasePicker(inToolbar: Bool) -> some View {
+        Picker(
+            "Phase",
+            selection: Binding(
+                get: { viewModel.phase },
+                set: { applyPreset($0) }
+            )
+        ) {
+            ForEach(TimerPhase.allCases, id: \.self) { phase in
+                Text(inToolbar ? phase.shortTitle : phase.title)
+                    .tag(phase)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
     }
 
     /// The pin in the window toolbar's right corner. Settings sits next to Reset instead,
