@@ -111,16 +111,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
 
     @objc func togglePopover(_ sender: Any?) {
-        // Only one full timer UI at a time: if the window is open, bring it forward instead of opening the popover.
-        if let window = mainWindowController?.window, window.isVisible, !window.isMiniaturized {
-            showMainWindow()
-            return
-        }
-
         if let button = statusItem.button {
             if popover.isShown {
                 popover.performClose(sender)
             } else {
+                // The menu bar item always opens the popover. An open window fades out as it does,
+                // so there's one timer on screen and it seems to go back into the menu bar.
+                if let window = mainWindowController?.window, window.isVisible, !window.isMiniaturized {
+                    fadeOut(window)
+                }
+
                 popover.contentSize = timerHostingController.sizeThatFits(
                     in: NSSize(width: 360, height: 10_000)
                 )
@@ -336,8 +336,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             if window.isMiniaturized {
                 window.deminiaturize(nil)
             }
+            if !window.isVisible {
+                window.alphaValue = 0
+            }
             window.makeKeyAndOrderFront(nil)
             window.orderFrontRegardless()
+            fadeIn(window)
             clearInitialFocus(in: window)
             return
         }
@@ -354,6 +358,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
         window.toolbarStyle = .unified
         window.titleVisibility = .hidden
+        if #available(macOS 26.0, *) {
+            // The whole window is one glass surface (drawn by ContentView), so it needs to see through.
+            window.isOpaque = false
+            window.backgroundColor = .clear
+        }
         window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Timer"
         window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
@@ -373,6 +382,38 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         controller.showWindow(nil)
         window.orderFrontRegardless()
         clearInitialFocus(in: window)
+    }
+
+    /// Counts fades, so a fade-out that finishes after the window was brought back doesn't hide it again.
+    private var windowFade = 0
+
+    private func fadeOut(_ window: NSWindow) {
+        windowFade += 1
+        let fade = windowFade
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            window.animator().alphaValue = 0
+        } completionHandler: { [weak self] in
+            guard self?.windowFade == fade else {
+                return
+            }
+            window.orderOut(nil)
+            window.alphaValue = 1
+        }
+    }
+
+    private func fadeIn(_ window: NSWindow) {
+        windowFade += 1
+
+        guard window.alphaValue < 1 else {
+            return
+        }
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            window.animator().alphaValue = 1
+        }
     }
 
     /// Resizes the window to fit its content, keeping the top edge where it is.

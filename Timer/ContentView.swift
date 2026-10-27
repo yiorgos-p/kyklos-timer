@@ -73,14 +73,21 @@ struct ContentView: View {
         .frame(width: width)
         .fixedSize(horizontal: false, vertical: true)
         .background {
-            // Clicking anywhere outside a text field takes the focus off it, so Space starts the timer again.
-            Color.clear
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    taskFieldFocused = false
-                    minutesFieldFocused = false
+            ZStack {
+                // The popover is glass already; the window becomes one glass surface to match it.
+                if presentation == .window {
+                    WindowGlass()
                 }
-                .ignoresSafeArea()
+
+                // Clicking anywhere outside a text field takes the focus off it, so Space starts the timer again.
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        taskFieldFocused = false
+                        minutesFieldFocused = false
+                    }
+            }
+            .ignoresSafeArea()
         }
         .animation(.snappy(duration: 0.25), value: shouldShowSetupControls)
         .onChange(of: useMouseControls) { _, _ in
@@ -989,6 +996,18 @@ private struct GlassSurface<S: Shape>: ViewModifier {
             content.glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
         } else {
             content.background(shape.fill(fallback))
+        }
+    }
+}
+
+/// The whole window as one Liquid Glass surface, so it follows the Liquid Glass setting like the popover does.
+/// Before macOS 26 the window keeps the standard background.
+private struct WindowGlass: View {
+    var body: some View {
+        if #available(macOS 26.0, *) {
+            Rectangle()
+                .fill(Color.clear)
+                .glassEffect(.regular, in: Rectangle())
         }
     }
 }
