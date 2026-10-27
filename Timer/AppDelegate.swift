@@ -339,10 +339,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         )
         // The window is sized by fitMainWindowToContent, not by SwiftUI constraints.
         hostingController.sizingOptions = []
+        // Turn the view's .toolbar into the window's real toolbar, drawn by the system.
+        hostingController.sceneBridgingOptions = [.toolbars]
 
         let window = NSWindow(contentViewController: hostingController)
         window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
-        window.titlebarAppearsTransparent = true
+        window.toolbarStyle = .unified
         window.titleVisibility = .hidden
         window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Timer"
         window.isMovableByWindowBackground = true
@@ -482,19 +484,27 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         let hostingView = FirstMouseHostingView(rootView: MinimalTimerView(viewModel: viewModel))
         let cornerRadius = size.height / 2
 
-        // Frosted like the main window. A behind-window blur ignores layer masks, so the capsule shape is a mask image.
-        let background = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
-        background.material = .popover
-        background.blendingMode = .behindWindow
-        background.state = .active
-        background.maskImage = NSImage(size: size, flipped: false) { rect in
-            NSBezierPath(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius).fill()
-            return true
+        if #available(macOS 26.0, *) {
+            // Real Liquid Glass, so it follows the Liquid Glass setting in System Settings.
+            let glass = NSGlassEffectView()
+            glass.cornerRadius = cornerRadius
+            glass.contentView = hostingView
+            panel.contentView = glass
+        } else {
+            // A behind-window blur ignores layer masks, so the capsule shape is a mask image.
+            let background = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
+            background.material = .popover
+            background.blendingMode = .behindWindow
+            background.state = .active
+            background.maskImage = NSImage(size: size, flipped: false) { rect in
+                NSBezierPath(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius).fill()
+                return true
+            }
+            hostingView.frame = background.bounds
+            hostingView.autoresizingMask = [.width, .height]
+            background.addSubview(hostingView)
+            panel.contentView = background
         }
-        hostingView.frame = background.bounds
-        hostingView.autoresizingMask = [.width, .height]
-        background.addSubview(hostingView)
-        panel.contentView = background
 
         panel.setFrameAutosaveName("MinimalTimer")
         if !panel.setFrameUsingName("MinimalTimer") {

@@ -33,8 +33,26 @@ struct ContentView: View {
     private let dialSize: CGFloat = 220
 
     var body: some View {
+        content
+            .modifier(
+                WindowToolbar(
+                    isEnabled: presentation == .window,
+                    principal: phaseHeader(shortTitles: true),
+                    actions: toolbarActions
+                )
+            )
+            .onChange(of: keepWindowOnTop) { _, _ in
+                appDelegate?.applyWindowLevel()
+            }
+    }
+
+    /// In the window the phase switcher, On Top and Settings live in the toolbar; the popover has no toolbar,
+    /// so there they sit above and below the timer instead.
+    private var content: some View {
         VStack(spacing: 16) {
-            phaseHeader
+            if presentation == .popover {
+                phaseHeader(shortTitles: false)
+            }
 
             dial
 
@@ -44,24 +62,22 @@ struct ContentView: View {
 
             primaryControls
 
-            footerControls
+            if presentation == .popover {
+                footerControls
+            }
         }
         .padding(18)
         .frame(width: width)
         .fixedSize(horizontal: false, vertical: true)
         .background {
-            ZStack {
-                VisualEffectBackground()
-
-                // Clicking anywhere outside a text field takes the focus off it, so Space starts the timer again.
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        taskFieldFocused = false
-                        minutesFieldFocused = false
-                    }
-            }
-            .ignoresSafeArea()
+            // Clicking anywhere outside a text field takes the focus off it, so Space starts the timer again.
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    taskFieldFocused = false
+                    minutesFieldFocused = false
+                }
+                .ignoresSafeArea()
         }
         .animation(.snappy(duration: 0.25), value: shouldShowSetupControls)
         .onChange(of: useMouseControls) { _, _ in
@@ -80,8 +96,8 @@ struct ContentView: View {
     // MARK: - Phase
 
     /// The phase switcher, or just the phase's name while Zen Mode hides it.
-    /// The switcher keeps its space either way, so the window doesn't jump.
-    private var phaseHeader: some View {
+    /// The switcher keeps its space either way, so nothing jumps. The toolbar is narrow, so it uses short names.
+    private func phaseHeader(shortTitles: Bool) -> some View {
         ZStack {
             Picker(
                 "Phase",
@@ -91,7 +107,7 @@ struct ContentView: View {
                 )
             ) {
                 ForEach(TimerPhase.allCases, id: \.self) { phase in
-                    Text(phase.title)
+                    Text(shortTitles ? phase.shortTitle : phase.title)
                         .tag(phase)
                 }
             }
@@ -106,6 +122,31 @@ struct ContentView: View {
                     .foregroundStyle(viewModel.phase.tint)
             }
         }
+    }
+
+    /// The window toolbar's buttons on the right.
+    @ViewBuilder
+    private var toolbarActions: some View {
+        if minimalMode != "off" {
+            Button {
+                appDelegate?.showMinimalTimer()
+            } label: {
+                Label("Minimal", systemImage: "capsule")
+            }
+            .help("Switch to the small floating timer")
+        }
+
+        Toggle(isOn: $keepWindowOnTop) {
+            Label("On Top", systemImage: "pin")
+        }
+        .help(keepWindowOnTop ? "Stop keeping this window above other windows" : "Keep this window above other windows")
+
+        Button {
+            openAnchorSettings()
+        } label: {
+            Label("Settings", systemImage: "gearshape")
+        }
+        .help("Open Anchor Settings")
     }
 
     // MARK: - Dial
@@ -134,11 +175,8 @@ struct ContentView: View {
 
     private var dialFace: some View {
         ZStack {
-            DialTicks(major: false)
-                .stroke(Color.primary.opacity(0.15), lineWidth: 1)
-
-            DialTicks(major: true)
-                .stroke(Color.primary.opacity(0.3), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+            DialTicks()
+                .stroke(Color.primary.opacity(0.22), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
 
             DialRing(
                 fraction: viewModel.dialFraction,
@@ -149,28 +187,21 @@ struct ContentView: View {
             )
             .padding(Self.ringInset)
 
+            // The ring is the drag handle; the middle is left free for clicking the time.
+            Color.clear
+                .contentShape(RingHitArea(), eoFill: true)
+                .gesture(dialDrag)
+                .allowsHitTesting(canEditDuration && !useMouseControls)
+                .help("Drag the ring to set the time")
+
             if canEditDuration {
                 knob
             }
 
-            // The ring is the drag handle; the middle is left free for clicking the time.
-            Color.clear
-                .contentShape(RingHitArea(), eoFill: true)
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            dragDial(to: value.location)
-                        }
-                        .onEnded { _ in
-                            lastDragMinutes = nil
-                        }
-                )
-                .allowsHitTesting(canEditDuration && !useMouseControls)
-                .help("Drag the ring to set the time")
-
             dialCenter
         }
         .frame(width: dialSize, height: dialSize)
+        .coordinateSpace(.named(Self.dialSpace))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Timer")
         .accessibilityValue("\(viewModel.displayTime), \(statusCaption)")
@@ -191,20 +222,32 @@ struct ContentView: View {
     /// Space between the edge of the dial and the ring, where the minute marks sit.
     private static let ringInset: CGFloat = 16
 
+    private static let dialSpace = "dial"
+
+    /// Drag points are measured in the dial's own space, so the knob and the ring can share one gesture.
+    private var dialDrag: some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named(Self.dialSpace))
+            .onChanged { value in
+                dragDial(to: value.location)
+            }
+            .onEnded { _ in
+                lastDragMinutes = nil
+            }
+    }
+
+    /// A glass handle at the end of the arc, there only while the length can be changed.
     private var knob: some View {
         let radius = dialSize / 2 - Self.ringInset - 5
         let angle = Angle.degrees(viewModel.dialFraction * 360 - 90)
 
         return Circle()
-            .fill(Color.white)
-            .frame(width: 18, height: 18)
-            .overlay {
-                Circle()
-                    .stroke(dialTint, lineWidth: 3)
-            }
-            .shadow(color: .black.opacity(0.2), radius: 3, y: 1)
+            .fill(Color.clear)
+            .frame(width: 28, height: 28)
+            .glassSurface(in: Circle(), interactive: true, fallback: Color.white)
+            .contentShape(Circle())
+            .gesture(dialDrag)
+            .allowsHitTesting(!useMouseControls)
             .offset(x: cos(angle.radians) * radius, y: sin(angle.radians) * radius)
-            .allowsHitTesting(false)
     }
 
     @ViewBuilder
@@ -216,12 +259,10 @@ struct ContentView: View {
                     .font(.system(size: 40, weight: .medium, design: .rounded))
                     .monospacedDigit()
                     .multilineTextAlignment(.center)
-                    .frame(width: 84)
+                    .frame(width: 70)
+                    .padding(.horizontal, 10)
                     .padding(.vertical, 2)
-                    .background {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.primary.opacity(0.07))
-                    }
+                    .glassSurface(in: Capsule())
                     .focused($minutesFieldFocused)
                     .onChange(of: minutesText) { _, newValue in
                         let digits = String(newValue.filter { "0123456789".contains($0) }.prefix(2))
@@ -352,13 +393,17 @@ struct ContentView: View {
 
     private var taskField: some View {
         TextField("What are you working on?", text: $viewModel.task)
-            .textFieldStyle(.roundedBorder)
-            .controlSize(.large)
+            .textFieldStyle(.plain)
             .focused($taskFieldFocused)
             .onSubmit {
                 taskFieldFocused = false
             }
             .multilineTextAlignment(.center)
+            .font(.system(size: 14, weight: .medium))
+            .lineLimit(1)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
+            .glassSurface(in: Capsule())
             .accessibilityLabel("Current task")
     }
 
@@ -367,31 +412,34 @@ struct ContentView: View {
     @ViewBuilder
     private var primaryControls: some View {
         if !useMouseControls {
-            HStack(spacing: 10) {
-                Button(action: viewModel.toggleTimer) {
-                    Label(primaryActionTitle, systemImage: primaryButtonIcon)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(buttonTint)
-                .keyboardShortcut(.space, modifiers: [])
+            GlassGroup {
+                HStack(spacing: 10) {
+                    Button(action: viewModel.toggleTimer) {
+                        Label(primaryActionTitle, systemImage: primaryButtonIcon)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .glassButtonStyle(prominent: true)
+                    .tint(buttonTint)
+                    .keyboardShortcut(.space, modifiers: [])
 
-                Button(action: viewModel.resetTimer) {
-                    Label(
-                        viewModel.timerState == .finished ? "Stop" : "Reset",
-                        systemImage: viewModel.timerState == .finished ? "stop.fill" : "arrow.counterclockwise"
-                    )
-                    .frame(maxWidth: .infinity)
+                    Button(action: viewModel.resetTimer) {
+                        Label(
+                            viewModel.timerState == .finished ? "Stop" : "Reset",
+                            systemImage: viewModel.timerState == .finished ? "stop.fill" : "arrow.counterclockwise"
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
+                    .glassButtonStyle()
                 }
-                .buttonStyle(.bordered)
+                .controlSize(.large)
             }
-            .controlSize(.large)
         }
     }
 
     // MARK: - Footer
 
+    /// The popover's footer. Quit stays here because with the Dock icon hidden there's no other obvious way out.
     private var footerControls: some View {
         HStack(spacing: 8) {
             Button {
@@ -403,51 +451,27 @@ struct ContentView: View {
 
             Spacer()
 
-            switch presentation {
-            case .popover:
-                Button {
-                    appDelegate?.showMainWindow()
-                } label: {
-                    Label("Open Window", systemImage: "macwindow")
-                }
-                .help("Open the timer in its own window")
-
-            case .window:
-                if minimalMode != "off" {
-                    Button {
-                        appDelegate?.showMinimalTimer()
-                    } label: {
-                        Image(systemName: "capsule")
-                    }
-                    .help("Switch to the small floating timer")
-                }
-
-                Button {
-                    keepWindowOnTop.toggle()
-                    appDelegate?.applyWindowLevel()
-                } label: {
-                    Label(
-                        "On Top",
-                        systemImage: keepWindowOnTop ? "pin.fill" : "pin"
-                    )
-                }
-                .help(
-                    keepWindowOnTop
-                        ? "Stop keeping this window above other windows"
-                        : "Keep this window above other windows"
-                )
+            Button {
+                appDelegate?.showMainWindow()
+            } label: {
+                Label("Open Window", systemImage: "macwindow")
             }
+            .help("Open the timer in its own window")
 
             Button {
-                // Bring the app forward first, or Settings can open behind other apps when the Dock icon is hidden.
-                NSApp.activate(ignoringOtherApps: true)
-                openSettings()
+                openAnchorSettings()
             } label: {
                 Label("Settings", systemImage: "gearshape")
             }
             .help("Open Anchor Settings")
         }
-        .buttonStyle(.bordered)
+        .glassButtonStyle()
+    }
+
+    private func openAnchorSettings() {
+        // Bring the app forward first, or Settings can open behind other apps when the Dock icon is hidden.
+        NSApp.activate(ignoringOtherApps: true)
+        openSettings()
     }
 
     // MARK: - Derived state
@@ -562,18 +586,16 @@ private struct DialRing: View {
     }
 }
 
-/// Minute marks around the outside of the dial, longer every five minutes.
+/// Five-minute marks around the outside of the dial.
 private struct DialTicks: Shape {
-    let major: Bool
-
     func path(in rect: CGRect) -> Path {
         let center = CGPoint(x: rect.midX, y: rect.midY)
         let outer = min(rect.width, rect.height) / 2 - 1
-        let inner = outer - (major ? 6 : 3)
+        let inner = outer - 6
         var path = Path()
 
-        for minute in 0..<60 where (minute % 5 == 0) == major {
-            let angle = Double(minute) / 60 * 2 * .pi - .pi / 2
+        for mark in 0..<12 {
+            let angle = Double(mark) / 12 * 2 * .pi - .pi / 2
             path.move(to: CGPoint(x: center.x + cos(angle) * outer, y: center.y + sin(angle) * outer))
             path.addLine(to: CGPoint(x: center.x + cos(angle) * inner, y: center.y + sin(angle) * inner))
         }
@@ -589,20 +611,6 @@ private struct RingHitArea: Shape {
         path.addEllipse(in: rect.insetBy(dx: rect.width * 0.25, dy: rect.height * 0.25))
         return path
     }
-}
-
-/// The frosted, see-through background used by menu bar popovers, behind the window and the popover alike.
-private struct VisualEffectBackground: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = .popover
-        view.blendingMode = .behindWindow
-        // Stay frosted while another app is in front, since the timer is often looked at from there.
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
 // MARK: - Minimal timer
@@ -662,19 +670,18 @@ struct MinimalTimerView: View {
                 Label(viewModel.nextPhase == .focus ? "Focus" : "Break", systemImage: "play.fill")
                     .font(.system(size: 12, weight: .semibold))
             }
-            .buttonStyle(.borderedProminent)
+            .glassButtonStyle(prominent: true)
             .buttonBorderShape(.capsule)
             .tint(viewModel.nextPhase.tint)
             .help("Start \(viewModel.nextPhase.title)")
         } else {
             Button(action: viewModel.toggleTimer) {
                 Image(systemName: viewModel.timerState == .running ? "pause.fill" : "play.fill")
-                    .font(.system(size: 13, weight: .bold))
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(Color.primary.opacity(0.08)))
-                    .contentShape(Circle())
+                    .font(.system(size: 12, weight: .bold))
+                    .frame(width: 16, height: 16)
             }
-            .buttonStyle(.plain)
+            .glassButtonStyle()
+            .buttonBorderShape(.circle)
             .help(viewModel.timerState == .running ? "Pause" : "Start")
         }
     }
@@ -761,7 +768,7 @@ private struct SessionDots: View {
             HStack(spacing: 4) {
                 ForEach(0..<perCycle, id: \.self) { index in
                     Circle()
-                        .fill(index < filledInCycle ? TimerPhase.focus.tint : Color.primary.opacity(0.15))
+                        .fill(index < filledInCycle ? Color.primary.opacity(0.55) : Color.primary.opacity(0.15))
                         .frame(width: 7, height: 7)
                 }
             }
@@ -867,6 +874,99 @@ private final class MouseClickNSView: NSView {
             onTripleClick?()
         default:
             break
+        }
+    }
+}
+
+// MARK: - Glass
+
+/// Real Liquid Glass on macOS 26 and later, so it follows the Liquid Glass setting in System Settings;
+/// the standard bordered look before that.
+private struct GlassButtonStyle: ViewModifier {
+    let prominent: Bool
+
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            if prominent {
+                content.buttonStyle(.glassProminent)
+            } else {
+                content.buttonStyle(.glass)
+            }
+        } else {
+            if prominent {
+                content.buttonStyle(.borderedProminent)
+            } else {
+                content.buttonStyle(.bordered)
+            }
+        }
+    }
+}
+
+private struct GlassSurface<S: Shape>: ViewModifier {
+    let shape: S
+    let interactive: Bool
+    let fallback: Color
+
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content.glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+        } else {
+            content.background(shape.fill(fallback))
+        }
+    }
+}
+
+/// Lets neighbouring glass buttons blend into each other the way the system's own groups do.
+private struct GlassGroup<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        if #available(macOS 26.0, *) {
+            GlassEffectContainer(spacing: 10) {
+                content
+            }
+        } else {
+            content
+        }
+    }
+}
+
+private extension View {
+    func glassButtonStyle(prominent: Bool = false) -> some View {
+        modifier(GlassButtonStyle(prominent: prominent))
+    }
+
+    func glassSurface<S: Shape>(
+        in shape: S,
+        interactive: Bool = false,
+        fallback: Color = Color.primary.opacity(0.06)
+    ) -> some View {
+        modifier(GlassSurface(shape: shape, interactive: interactive, fallback: fallback))
+    }
+}
+
+// MARK: - Window toolbar
+
+/// The window's toolbar: the phase switcher in the middle and its buttons on the right.
+/// The system draws it, so it gets the standard frosted toolbar look.
+private struct WindowToolbar<Principal: View, Actions: View>: ViewModifier {
+    let isEnabled: Bool
+    let principal: Principal
+    let actions: Actions
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.toolbar {
+                ToolbarItem(placement: .principal) {
+                    principal
+                }
+
+                ToolbarItemGroup(placement: .primaryAction) {
+                    actions
+                }
+            }
+        } else {
+            content
         }
     }
 }
