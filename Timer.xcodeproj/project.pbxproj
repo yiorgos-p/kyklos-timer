@@ -431,7 +431,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Timer/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Anchor;
+				INFOPLIST_KEY_CFBundleDisplayName = Kyklos;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -441,8 +441,8 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14;
 				MARKETING_VERSION = 2.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yiorgos-p.Anchor";
-				PRODUCT_NAME = Anchor;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yiorgos-p.Kyklos";
+				PRODUCT_NAME = Kyklos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 			};
@@ -464,7 +464,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Timer/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Anchor;
+				INFOPLIST_KEY_CFBundleDisplayName = Kyklos;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -474,8 +474,8 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14;
 				MARKETING_VERSION = 2.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yiorgos-p.Anchor";
-				PRODUCT_NAME = Anchor;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yiorgos-p.Kyklos";
+				PRODUCT_NAME = Kyklos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 			};
@@ -493,7 +493,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.1;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yiorgos-p.AnchorTests";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yiorgos-p.KyklosTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
@@ -513,7 +513,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.1;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yiorgos-p.AnchorTests";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yiorgos-p.KyklosTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
@@ -531,7 +531,7 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yiorgos-p.AnchorUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yiorgos-p.KyklosUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
@@ -549,7 +549,7 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yiorgos-p.AnchorUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yiorgos-p.KyklosUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;

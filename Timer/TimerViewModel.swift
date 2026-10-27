@@ -147,6 +147,8 @@ final class TimerViewModel: ObservableObject {
     }
 
     func setPhase(_ newPhase: TimerPhase) {
+        // A longer custom alarm shouldn't keep ringing into the next session.
+        stopAlarmSound()
         stopTicking()
         timerState = .stopped
         phase = newPhase
@@ -349,13 +351,98 @@ final class TimerViewModel: ObservableObject {
 
     // MARK: - Alarm
 
+    /// Limits for a sound picked in Settings: it rings again every minute in overtime, so it has to be short.
+    static let maximumAlarmSeconds: TimeInterval = 30
+    static let maximumAlarmBytes = 20 * 1024 * 1024
+
+    enum AlarmSoundError: LocalizedError {
+        case unreadable
+        case tooLong
+        case tooLarge
+
+        var errorDescription: String? {
+            switch self {
+            case .unreadable:
+                return "That file can't be played. Try an MP3, M4A, WAV or AIFF file."
+            case .tooLong:
+                return "That sound is longer than \(Int(TimerViewModel.maximumAlarmSeconds)) seconds. Pick a shorter one."
+            case .tooLarge:
+                return "That file is over \(TimerViewModel.maximumAlarmBytes / 1024 / 1024) MB. Pick a smaller one."
+            }
+        }
+    }
+
+    /// A picked sound is copied into the app's own folder, so it keeps working if the original is moved or deleted.
+    private static var customAlarmURL: URL? {
+        guard
+            let fileName = UserDefaults.standard.string(forKey: "customAlarmFile"),
+            let folder = try? FileManager.default.url(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask,
+                appropriateFor: nil,
+                create: true
+            )
+        else {
+            return nil
+        }
+
+        return folder.appendingPathComponent(fileName)
+    }
+
+    /// Checks a sound picked in Settings against the limits, then makes it the alarm.
+    func setCustomAlarm(from url: URL) throws {
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        guard size <= Self.maximumAlarmBytes else {
+            throw AlarmSoundError.tooLarge
+        }
+
+        guard let player = try? AVAudioPlayer(contentsOf: url), player.duration > 0 else {
+            throw AlarmSoundError.unreadable
+        }
+        guard player.duration <= Self.maximumAlarmSeconds else {
+            throw AlarmSoundError.tooLong
+        }
+
+        removeCustomAlarmFile()
+
+        let fileExtension = url.pathExtension.isEmpty ? "audio" : url.pathExtension.lowercased()
+        let defaults = UserDefaults.standard
+        defaults.set("custom-alarm.\(fileExtension)", forKey: "customAlarmFile")
+
+        guard let destination = Self.customAlarmURL else {
+            throw AlarmSoundError.unreadable
+        }
+        try FileManager.default.copyItem(at: url, to: destination)
+
+        defaults.set(url.lastPathComponent, forKey: "customAlarmName")
+        prepareAlarmSound()
+    }
+
+    func useDefaultAlarm() {
+        removeCustomAlarmFile()
+        UserDefaults.standard.removeObject(forKey: "customAlarmFile")
+        UserDefaults.standard.removeObject(forKey: "customAlarmName")
+        prepareAlarmSound()
+    }
+
+    private func removeCustomAlarmFile() {
+        if let url = Self.customAlarmURL {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
     private func prepareAlarmSound() {
-        if let soundURL = Bundle.main.url(forResource: "alarm", withExtension: "mp3") {
-            do {
-                audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
-                audioPlayer?.prepareToPlay()
-            } catch {
-                print("Failed to initialize audio player: \(error)")
+        audioPlayer?.stop()
+        audioPlayer = nil
+
+        // The picked sound if there is one and it still opens, otherwise the built-in one.
+        let candidates = [Self.customAlarmURL, Bundle.main.url(forResource: "alarm", withExtension: "mp3")]
+
+        for case let soundURL? in candidates {
+            if let player = try? AVAudioPlayer(contentsOf: soundURL) {
+                player.prepareToPlay()
+                audioPlayer = player
+                return
             }
         }
     }
@@ -363,6 +450,15 @@ final class TimerViewModel: ObservableObject {
     func playAlarmSound() {
         audioPlayer?.currentTime = 0
         audioPlayer?.play()
+    }
+
+    func stopAlarmSound() {
+        audioPlayer?.stop()
+    }
+
+    /// How long the current alarm sound plays, so Settings can show when a preview has finished.
+    var alarmDuration: TimeInterval {
+        audioPlayer?.duration ?? 0
     }
 
     /// Rings again at each full minute of overtime, for the first few minutes, unless turned off in Settings.

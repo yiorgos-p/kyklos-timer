@@ -2,6 +2,7 @@ import SwiftUI
 import LaunchAtLogin
 import UserNotifications
 import Carbon.HIToolbox
+import UniformTypeIdentifiers
 
 struct TimerSettingsView: View {
     var body: some View {
@@ -53,6 +54,8 @@ private struct GeneralSettings: View {
                     Text("When time's up, ring again every minute until you start the next phase or stop, for up to 10 minutes.")
                 }
 
+                AlarmSoundRow()
+
                 Picker(selection: $useMouseControls) {
                     Text("Buttons").tag(false)
                     Text("Mouse").tag(true)
@@ -98,8 +101,8 @@ private struct GeneralSettings: View {
                     Text("Show in Dock")
                     Text(
                         menuBarStyle == "off"
-                            ? "Stays on while the menu bar item is off, so you can always get back to Anchor."
-                            : "When off, Anchor lives in the menu bar and its window."
+                            ? "Stays on while the menu bar item is off, so you can always get back to Kyklos."
+                            : "When off, Kyklos lives in the menu bar and its window."
                     )
                 }
                 .disabled(menuBarStyle == "off")
@@ -161,7 +164,7 @@ private struct GeneralSettings: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Notifications are off")
 
-                Text("You won't get a \"Time's up\" banner. Turn on Allow Notifications for Anchor in System Settings.")
+                Text("You won't get a \"Time's up\" banner. Turn on Allow Notifications for Kyklos in System Settings.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -174,6 +177,97 @@ private struct GeneralSettings: View {
                     NSWorkspace.shared.open(url)
                 }
             }
+        }
+    }
+}
+
+/// The alarm: the built-in sound, or any short audio file the user picks.
+private struct AlarmSoundRow: View {
+    @AppStorage("customAlarmName") private var customAlarmName: String?
+    @State private var isPreviewing = false
+    @State private var previewEnd: DispatchWorkItem?
+    @State private var message: String?
+
+    private var viewModel: TimerViewModel? {
+        AppDelegate.shared?.viewModel
+    }
+
+    var body: some View {
+        LabeledContent {
+            HStack(spacing: 8) {
+                Button(isPreviewing ? "Stop" : "Play") {
+                    isPreviewing ? stopPreview() : startPreview()
+                }
+
+                Button("Choose…", action: chooseSound)
+
+                if customAlarmName != nil {
+                    Button("Use Default") {
+                        stopPreview()
+                        viewModel?.useDefaultAlarm()
+                        message = nil
+                    }
+                }
+            }
+        } label: {
+            Text("Alarm sound")
+            Text(customAlarmName ?? "Default")
+
+            if let message {
+                Text(message)
+                    .foregroundStyle(.orange)
+            }
+        }
+        .onDisappear {
+            stopPreview()
+        }
+    }
+
+    private func chooseSound() {
+        stopPreview()
+
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.audio]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.message = "Choose a sound up to \(Int(TimerViewModel.maximumAlarmSeconds)) seconds long."
+        panel.prompt = "Use Sound"
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+
+        do {
+            try viewModel?.setCustomAlarm(from: url)
+            message = nil
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+
+    private func startPreview() {
+        guard let viewModel else {
+            return
+        }
+
+        viewModel.playAlarmSound()
+        isPreviewing = true
+
+        // Flip the button back to Play when the sound ends by itself.
+        let end = DispatchWorkItem {
+            isPreviewing = false
+        }
+        previewEnd = end
+        DispatchQueue.main.asyncAfter(deadline: .now() + viewModel.alarmDuration, execute: end)
+    }
+
+    private func stopPreview() {
+        previewEnd?.cancel()
+        previewEnd = nil
+
+        if isPreviewing {
+            viewModel?.stopAlarmSound()
+            isPreviewing = false
         }
     }
 }
@@ -280,7 +374,7 @@ private struct AboutSettings: View {
                 .accessibilityHidden(true)
 
             VStack(spacing: 3) {
-                Text("Anchor")
+                Text("Kyklos")
                     .font(.title2)
                     .fontWeight(.semibold)
 
@@ -300,7 +394,7 @@ private struct AboutSettings: View {
                 .foregroundStyle(.secondary)
 
             Link(destination: URL(string: "https://github.com/YYUUGGOO/Cloud")!) {
-                Label("Based on Cloud by David", systemImage: "arrow.up.right.square")
+                Label("Started from Cloud by David", systemImage: "arrow.up.right.square")
             }
         }
         .padding(28)
@@ -359,7 +453,7 @@ private struct ShortcutRecorder: View {
                     message = Self.takenMessage
                 }
             } else {
-                message = "Use ⌘ or ⌃ plus at least one more modifier key, like ⌃⌥A."
+                message = "Use ⌘ or ⌃ plus at least one more modifier key, like ⌃⌥K."
             }
 
             // Swallow every key while recording, so nothing else reacts to it.

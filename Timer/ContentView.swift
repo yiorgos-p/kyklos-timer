@@ -474,8 +474,8 @@ struct ContentView: View {
                         }
                     }
 
-                    iconButton("gearshape", help: "Open Anchor Settings") {
-                        openAnchorSettings()
+                    iconButton("gearshape", help: "Open Kyklos Settings") {
+                        openKyklosSettings()
                     }
                 }
             }
@@ -504,7 +504,7 @@ struct ContentView: View {
             } label: {
                 Image(systemName: "power")
             }
-            .help("Quit Anchor")
+            .help("Quit Kyklos")
 
             Spacer()
 
@@ -516,17 +516,17 @@ struct ContentView: View {
             .help("Open the timer in its own window")
 
             Button {
-                openAnchorSettings()
+                openKyklosSettings()
             } label: {
                 Label("Settings", systemImage: "gearshape")
             }
-            .help("Open Anchor Settings")
+            .help("Open Kyklos Settings")
         }
         .glassButtonStyle()
         .buttonBorderShape(.capsule)
     }
 
-    private func openAnchorSettings() {
+    private func openKyklosSettings() {
         // Bring the app forward first, or Settings can open behind other apps when the Dock icon is hidden.
         NSApp.activate(ignoringOtherApps: true)
         openSettings()

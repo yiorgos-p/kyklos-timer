@@ -154,7 +154,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             }
             let style = UserDefaults.standard.string(forKey: "menuBarStyle") ?? "time"
 
-            // "off" hides the menu bar item; the Dock icon then stays on so Anchor can still be reached.
+            // "off" hides the menu bar item; the Dock icon then stays on so Kyklos can still be reached.
             statusItem.isVisible = style != "off"
             if style == "off", popover.isShown {
                 popover.performClose(nil)
@@ -294,7 +294,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
     // MARK: - Global shortcut
 
-    /// The saved shortcut (Control-Option-A unless changed) starts, pauses or resumes the timer from any app.
+    /// The saved shortcut (Control-Option-K unless changed) starts, pauses or resumes the timer from any app.
     func updateGlobalShortcut() {
         let enabled = UserDefaults.standard.object(forKey: "globalShortcutEnabled") as? Bool ?? true
         let wanted = enabled && !globalShortcutSuspended ? GlobalShortcut.saved : nil
@@ -581,7 +581,7 @@ private final class MinimalPanel: NSPanel {
     }
 }
 
-/// Lets the pill's button work on the first click, without first bringing Anchor to the front.
+/// Lets the pill's button work on the first click, without first bringing Kyklos to the front.
 private final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
         true
@@ -597,9 +597,9 @@ struct GlobalShortcut: Equatable {
     var keyName: String
 
     static let standard = GlobalShortcut(
-        keyCode: UInt32(kVK_ANSI_A),
+        keyCode: UInt32(kVK_ANSI_K),
         modifiers: UInt32(controlKey | optionKey),
-        keyName: "A"
+        keyName: "K"
     )
 
     static var saved: GlobalShortcut {
@@ -698,8 +698,8 @@ private final class GlobalHotKey {
             &handlerRef
         )
 
-        // "ANCR"
-        let hotKeyID = EventHotKeyID(signature: OSType(0x414E_4352), id: 1)
+        // "KYKL"
+        let hotKeyID = EventHotKeyID(signature: OSType(0x4B59_4B4C), id: 1)
         let registerStatus = RegisterEventHotKey(
             keyCode,
             modifiers,

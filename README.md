@@ -1,9 +1,9 @@
-# Anchor
+# Kyklos
 
-Anchor is a free, minimal Pomodoro timer for macOS, in its own window and in the menu bar. It is built to keep a
+Kyklos (KEE-klos, Greek for both *circle* and *cycle*) is a free, minimal Pomodoro timer for macOS, in its own window and in the menu bar. It is built to keep a
 wandering mind on one thing at a time.
 
-Anchor is based on [Cloud](https://github.com/YYUUGGOO/Cloud) by David.
+Kyklos started as a fork of [Cloud](https://github.com/YYUUGGOO/Cloud) by David and has since been almost entirely rewritten.
 
 ## Features
 
@@ -15,7 +15,8 @@ Anchor is based on [Cloud](https://github.com/YYUUGGOO/Cloud) by David.
 - Today's finished focus sessions, shown as dots, with a button to reset them
 - Accurate to the system clock: keeps counting through sleep and never drifts
 - A notification and an alarm when time is up, with the alarm ringing again every minute for up to 10 minutes
-- A global shortcut to start or pause from any app: ⌃⌥A, or one you pick
+- Your own alarm sound if you like: any audio file up to 30 seconds
+- A global shortcut to start or pause from any app: ⌃⌥K, or one you pick
 - Optional mouse mode: click the dial to start or pause, and triple-click it to reset
 - Optional Zen Mode that hides the phase switcher while the timer is running
 - Optional Minimal Mode: a small floating pill with the time, the task and one button, shown during a session or all the time
@@ -41,7 +42,7 @@ No Apple developer account is needed: the app is signed to run locally. To build
 xcodebuild -project Timer.xcodeproj -scheme Timer -configuration Release -derivedDataPath build build
 ```
 
-The app ends up in `build/Build/Products/Release/Anchor.app`.
+The app ends up in `build/Build/Products/Release/Kyklos.app`.
 
 ## Dependency
 
@@ -49,4 +50,5 @@ The app ends up in `build/Build/Products/Release/Anchor.app`.
 
 ## License
 
-Anchor is licensed under the GNU General Public License v3.0, like the Cloud project it is based on.
+Kyklos is licensed under the GNU General Public License v3.0. It still contains parts of Cloud (some code and the
+default alarm sound), which is licensed under the same terms; those parts are © David.
