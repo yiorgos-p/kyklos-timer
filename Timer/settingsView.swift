@@ -101,8 +101,8 @@ private struct GeneralSettings: View {
                     Text("Show in Dock")
                     Text(
                         menuBarStyle == "off"
-                            ? "Stays on while the menu bar item is off, so you can always get back to Kyklos."
-                            : "When off, Kyklos lives in the menu bar and its window."
+                            ? "Stays on while the menu bar item is off, so you can always get back to kyklos."
+                            : "When off, kyklos lives in the menu bar and its window."
                     )
                 }
                 .disabled(menuBarStyle == "off")
@@ -164,7 +164,7 @@ private struct GeneralSettings: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Notifications are off")
 
-                Text("You won't get a \"Time's up\" banner. Turn on Allow Notifications for Kyklos in System Settings.")
+                Text("You won't get a \"Time's up\" banner. Turn on Allow Notifications for kyklos in System Settings.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -374,7 +374,7 @@ private struct AboutSettings: View {
                 .accessibilityHidden(true)
 
             VStack(spacing: 3) {
-                Text("Kyklos")
+                Text("kyklos")
                     .font(.title2)
                     .fontWeight(.semibold)
 

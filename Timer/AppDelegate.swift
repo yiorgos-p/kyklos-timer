@@ -154,7 +154,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             }
             let style = UserDefaults.standard.string(forKey: "menuBarStyle") ?? "time"
 
-            // "off" hides the menu bar item; the Dock icon then stays on so Kyklos can still be reached.
+            // "off" hides the menu bar item; the Dock icon then stays on so kyklos can still be reached.
             statusItem.isVisible = style != "off"
             if style == "off", popover.isShown {
                 popover.performClose(nil)
@@ -581,7 +581,7 @@ private final class MinimalPanel: NSPanel {
     }
 }
 
-/// Lets the pill's button work on the first click, without first bringing Kyklos to the front.
+/// Lets the pill's button work on the first click, without first bringing kyklos to the front.
 private final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
         true

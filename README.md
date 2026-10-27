@@ -1,9 +1,9 @@
-# Kyklos
+# kyklos
 
-Kyklos (KEE-klos, Greek for both *circle* and *cycle*) is a free, minimal Pomodoro timer for macOS, in its own window and in the menu bar. It is built to keep a
+kyklos (KEE-klos, Greek for both *circle* and *cycle*) is a free, minimal Pomodoro timer for macOS, in its own window and in the menu bar. It is built to keep a
 wandering mind on one thing at a time.
 
-Kyklos started as a fork of [Cloud](https://github.com/YYUUGGOO/Cloud) by David and has since been almost entirely rewritten.
+kyklos started as a fork of [Cloud](https://github.com/YYUUGGOO/Cloud) by David and has since been almost entirely rewritten.
 
 ## Features
 
@@ -42,7 +42,7 @@ No Apple developer account is needed: the app is signed to run locally. To build
 xcodebuild -project Timer.xcodeproj -scheme Timer -configuration Release -derivedDataPath build build
 ```
 
-The app ends up in `build/Build/Products/Release/Kyklos.app`.
+The app ends up in `build/Build/Products/Release/kyklos.app`.
 
 ## Dependency
 
@@ -50,5 +50,5 @@ The app ends up in `build/Build/Products/Release/Kyklos.app`.
 
 ## License
 
-Kyklos is licensed under the GNU General Public License v3.0. It still contains parts of Cloud (some code and the
+kyklos is licensed under the GNU General Public License v3.0. It still contains parts of Cloud (some code and the
 default alarm sound), which is licensed under the same terms; those parts are © David.

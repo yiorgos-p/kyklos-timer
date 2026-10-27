@@ -474,7 +474,7 @@ struct ContentView: View {
                         }
                     }
 
-                    iconButton("gearshape", help: "Open Kyklos Settings") {
+                    iconButton("gearshape", help: "Open kyklos Settings") {
                         openKyklosSettings()
                     }
                 }
@@ -504,7 +504,7 @@ struct ContentView: View {
             } label: {
                 Image(systemName: "power")
             }
-            .help("Quit Kyklos")
+            .help("Quit kyklos")
 
             Spacer()
 
@@ -520,7 +520,7 @@ struct ContentView: View {
             } label: {
                 Label("Settings", systemImage: "gearshape")
             }
-            .help("Open Kyklos Settings")
+            .help("Open kyklos Settings")
         }
         .glassButtonStyle()
         .buttonBorderShape(.capsule)

@@ -431,7 +431,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Timer/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Kyklos;
+				INFOPLIST_KEY_CFBundleDisplayName = kyklos;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -442,7 +442,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14;
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yiorgos-p.Kyklos";
-				PRODUCT_NAME = Kyklos;
+				PRODUCT_NAME = kyklos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 			};
@@ -464,7 +464,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Timer/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Kyklos;
+				INFOPLIST_KEY_CFBundleDisplayName = kyklos;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -475,7 +475,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14;
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "io.github.yiorgos-p.Kyklos";
-				PRODUCT_NAME = Kyklos;
+				PRODUCT_NAME = kyklos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 			};
