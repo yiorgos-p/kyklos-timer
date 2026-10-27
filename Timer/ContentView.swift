@@ -10,9 +10,6 @@ struct ContentView: View {
     @ObservedObject var viewModel: TimerViewModel
     var presentation: Presentation = .popover
 
-    @AppStorage("standardTimer") private var standardTimer = 25
-    @AppStorage("shortBreak") private var shortBreak = 5
-    @AppStorage("longBreak") private var longBreak = 10
     @AppStorage("useMouseControls") private var useMouseControls = false
     @AppStorage("zenMode") private var zenMode = false
     @AppStorage("keepWindowOnTop") private var keepWindowOnTop = false
@@ -25,15 +22,21 @@ struct ContentView: View {
         return TimerPhase.focusSessionsPerLongBreak
     }
     @FocusState private var taskFieldFocused: Bool
+    @FocusState private var minutesFieldFocused: Bool
+    @State private var isEditingMinutes = false
+    @State private var minutesText = ""
+    /// The minutes the dial was last dragged to, so a drag can't wrap past 12 o'clock.
+    @State private var lastDragMinutes: Int?
     @Environment(\.openSettings) private var openSettings
 
     private let width: CGFloat = 360
+    private let dialSize: CGFloat = 220
 
     var body: some View {
         VStack(spacing: 16) {
             phaseHeader
 
-            timerDial
+            dial
 
             sessionRow
 
@@ -47,12 +50,18 @@ struct ContentView: View {
         .frame(width: width)
         .fixedSize(horizontal: false, vertical: true)
         .background {
-            Color(nsColor: .windowBackgroundColor)
-                .ignoresSafeArea()
-                // Clicking anywhere outside the task field takes the focus off it, so Space starts the timer again.
-                .onTapGesture {
-                    taskFieldFocused = false
-                }
+            ZStack {
+                VisualEffectBackground()
+
+                // Clicking anywhere outside a text field takes the focus off it, so Space starts the timer again.
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        taskFieldFocused = false
+                        minutesFieldFocused = false
+                    }
+            }
+            .ignoresSafeArea()
         }
         .animation(.snappy(duration: 0.25), value: shouldShowSetupControls)
         .onChange(of: useMouseControls) { _, _ in
@@ -61,115 +70,249 @@ struct ContentView: View {
                 appDelegate?.fitMainWindowToContent()
             }
         }
+        .onChange(of: viewModel.timerState) { _, state in
+            if state != .stopped, isEditingMinutes {
+                cancelMinutesEditing()
+            }
+        }
     }
 
     // MARK: - Phase
 
-    /// The phase switcher, or just the phase's name while Zen Mode hides the setup controls.
-    /// Both are the same height, so the window doesn't jump when one replaces the other.
-    @ViewBuilder
+    /// The phase switcher, or just the phase's name while Zen Mode hides it.
+    /// The switcher keeps its space either way, so the window doesn't jump.
     private var phaseHeader: some View {
-        if shouldShowSetupControls {
-            PhasePicker(
-                selection: viewModel.phase,
-                minutes: presetMinutes(for:),
-                select: applyPreset
-            )
-        } else {
-            Label(viewModel.phase.title, systemImage: viewModel.phase.systemImage)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(viewModel.phase.tint)
-                .frame(height: PhasePicker.height)
+        ZStack {
+            Picker(
+                "Phase",
+                selection: Binding(
+                    get: { viewModel.phase },
+                    set: { applyPreset($0) }
+                )
+            ) {
+                ForEach(TimerPhase.allCases, id: \.self) { phase in
+                    Text(phase.title)
+                        .tag(phase)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .opacity(shouldShowSetupControls ? 1 : 0)
+            .disabled(!shouldShowSetupControls)
+
+            if !shouldShowSetupControls {
+                Label(viewModel.phase.title, systemImage: viewModel.phase.systemImage)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(viewModel.phase.tint)
+            }
         }
     }
 
     // MARK: - Dial
 
-    private var timerDial: some View {
-        HStack(spacing: 8) {
-            durationButton(step: -1, systemImage: "minus")
-
-            Group {
-                if useMouseControls {
-                    MouseCommandSurface(
-                        onSingleClick: {
-                            viewModel.toggleTimer()
+    @ViewBuilder
+    private var dial: some View {
+        if useMouseControls {
+            // In mouse mode a click on the dial starts or pauses, so the minutes can't be typed; dragging still works.
+            dialFace
+                .overlay {
+                    MouseClickRepresentable(
+                        onSingleClick: viewModel.toggleTimer,
+                        onTripleClick: viewModel.resetTimer,
+                        onDrag: { location in
+                            dragDial(to: location)
                         },
-                        onTripleClick: {
-                            viewModel.resetTimer()
+                        onDragEnd: {
+                            lastDragMinutes = nil
                         }
-                    ) {
-                        disk
-                    }
-                } else {
-                    disk
+                    )
                 }
-            }
-
-            durationButton(step: 1, systemImage: "plus")
+        } else {
+            dialFace
         }
     }
 
-    private var disk: some View {
-        TimeDisk(
-            fraction: viewModel.dialFraction,
-            tint: dialTint,
-            // Drain smoothly between ticks while running; jump straight to the new value otherwise.
-            animation: viewModel.timerState == .running
-                ? .linear(duration: 1)
-                : .snappy(duration: 0.3)
-        ) {
-            ZStack {
-                Circle()
-                    .fill(Color(nsColor: .windowBackgroundColor))
-                    .shadow(color: .black.opacity(0.15), radius: 5, y: 1)
-                    .padding(42)
+    private var dialFace: some View {
+        ZStack {
+            DialTicks(major: false)
+                .stroke(Color.primary.opacity(0.15), lineWidth: 1)
 
-                VStack(spacing: 1) {
-                    Text(viewModel.displayTime)
-                        .font(.system(size: 36, weight: .medium, design: .rounded))
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .contentTransition(.numericText())
-                        .foregroundStyle(viewModel.timerState == .finished ? Palette.timesUpColor : .primary)
+            DialTicks(major: true)
+                .stroke(Color.primary.opacity(0.3), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
 
-                    Text(statusCaption)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(viewModel.timerState == .finished ? Palette.timesUpColor : .secondary)
-                        .monospacedDigit()
-                }
-                .padding(.horizontal, 50)
+            DialRing(
+                fraction: viewModel.dialFraction,
+                tint: dialTint,
+                lineWidth: 10,
+                // Drain smoothly between ticks while running; follow the drag straight away otherwise.
+                animation: viewModel.timerState == .running ? .linear(duration: 1) : nil
+            )
+            .padding(Self.ringInset)
+
+            if canEditDuration {
+                knob
             }
+
+            // The ring is the drag handle; the middle is left free for clicking the time.
+            Color.clear
+                .contentShape(RingHitArea(), eoFill: true)
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            dragDial(to: value.location)
+                        }
+                        .onEnded { _ in
+                            lastDragMinutes = nil
+                        }
+                )
+                .allowsHitTesting(canEditDuration && !useMouseControls)
+                .help("Drag the ring to set the time")
+
+            dialCenter
         }
-        .frame(width: 220, height: 220)
+        .frame(width: dialSize, height: dialSize)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Remaining time")
+        .accessibilityLabel("Timer")
         .accessibilityValue("\(viewModel.displayTime), \(statusCaption)")
+        .accessibilityAdjustableAction { direction in
+            let minutes = Int(viewModel.timerDuration)
+
+            switch direction {
+            case .increment:
+                viewModel.setDuration(minutes: minutes + 1)
+            case .decrement:
+                viewModel.setDuration(minutes: minutes - 1)
+            @unknown default:
+                break
+            }
+        }
     }
 
-    /// − and + beside the dial set the length before starting; hold to keep changing it.
-    private func durationButton(step: Int, systemImage: String) -> some View {
-        let minutes = Int(viewModel.timerDuration)
-        let canChange = step < 0 ? minutes > 1 : minutes < TimerViewModel.maximumMinutes
-        let isStopped = viewModel.timerState == .stopped
+    /// Space between the edge of the dial and the ring, where the minute marks sit.
+    private static let ringInset: CGFloat = 16
 
-        return Button {
-            viewModel.adjustDuration(by: step)
-        } label: {
-            Image(systemName: systemImage)
-                .font(.system(size: 13, weight: .bold))
-                .frame(width: 30, height: 30)
-                .background(Circle().fill(Color.primary.opacity(0.07)))
-                .contentShape(Circle())
+    private var knob: some View {
+        let radius = dialSize / 2 - Self.ringInset - 5
+        let angle = Angle.degrees(viewModel.dialFraction * 360 - 90)
+
+        return Circle()
+            .fill(Color.white)
+            .frame(width: 18, height: 18)
+            .overlay {
+                Circle()
+                    .stroke(dialTint, lineWidth: 3)
+            }
+            .shadow(color: .black.opacity(0.2), radius: 3, y: 1)
+            .offset(x: cos(angle.radians) * radius, y: sin(angle.radians) * radius)
+            .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private var dialCenter: some View {
+        if isEditingMinutes {
+            VStack(spacing: 2) {
+                TextField("", text: $minutesText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 40, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .multilineTextAlignment(.center)
+                    .frame(width: 84)
+                    .padding(.vertical, 2)
+                    .background {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.primary.opacity(0.07))
+                    }
+                    .focused($minutesFieldFocused)
+                    .onChange(of: minutesText) { _, newValue in
+                        let digits = String(newValue.filter { "0123456789".contains($0) }.prefix(2))
+                        if digits != newValue {
+                            minutesText = digits
+                        }
+                    }
+                    .onSubmit(commitMinutesEditing)
+                    .onExitCommand(perform: cancelMinutesEditing)
+                    .onChange(of: minutesFieldFocused) { _, focused in
+                        if !focused, isEditingMinutes {
+                            commitMinutesEditing()
+                        }
+                    }
+
+                Text("minutes")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            VStack(spacing: 2) {
+                Text(viewModel.displayTime)
+                    .font(.system(size: 42, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .contentTransition(.numericText())
+                    .foregroundStyle(viewModel.timerState == .finished ? .orange : .primary)
+                    .onTapGesture {
+                        if canEditDuration, !useMouseControls {
+                            beginMinutesEditing()
+                        }
+                    }
+                    .help(canEditDuration && !useMouseControls ? "Click to type the minutes" : "")
+
+                Text(statusCaption)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(viewModel.timerState == .finished ? .orange : .secondary)
+                    .monospacedDigit()
+            }
+            .frame(maxWidth: dialSize - 2 * Self.ringInset - 40)
         }
-        .buttonStyle(.plain)
-        .buttonRepeatBehavior(.enabled)
-        .disabled(!isStopped || !canChange)
-        // Hidden but still taking up space once the timer is going, so the dial stays put.
-        .opacity(isStopped ? (canChange ? 1 : 0.35) : 0)
-        .help(step < 0 ? "One minute less" : "One minute more")
-        .accessibilityLabel(step < 0 ? "One minute less" : "One minute more")
+    }
+
+    /// Turns a point on the dial into minutes: 12 o'clock is 60, each minute mark one minute.
+    /// Once a drag reaches 60 or 1 it stays there rather than jumping across 12 o'clock.
+    private func dragDial(to location: CGPoint) {
+        guard canEditDuration else {
+            return
+        }
+
+        var degrees = atan2(location.y - dialSize / 2, location.x - dialSize / 2) * 180 / .pi + 90
+        if degrees < 0 {
+            degrees += 360
+        }
+
+        var minutes = Int((degrees / 6).rounded())
+        if minutes == 0 {
+            minutes = 60
+        }
+
+        if let last = lastDragMinutes, abs(minutes - last) > 30 {
+            minutes = last > 30 ? 60 : 1
+        }
+
+        minutes = max(1, minutes)
+        lastDragMinutes = minutes
+        viewModel.setDuration(minutes: minutes)
+    }
+
+    private func beginMinutesEditing() {
+        minutesText = String(Int(viewModel.timerDuration))
+        isEditingMinutes = true
+
+        DispatchQueue.main.async {
+            minutesFieldFocused = true
+        }
+    }
+
+    private func commitMinutesEditing() {
+        if let minutes = Int(minutesText) {
+            viewModel.setDuration(minutes: minutes)
+        }
+
+        isEditingMinutes = false
+        minutesFieldFocused = false
+    }
+
+    private func cancelMinutesEditing() {
+        isEditingMinutes = false
+        minutesFieldFocused = false
     }
 
     // MARK: - Sessions and task
@@ -209,20 +352,13 @@ struct ContentView: View {
 
     private var taskField: some View {
         TextField("What are you working on?", text: $viewModel.task)
-            .textFieldStyle(.plain)
+            .textFieldStyle(.roundedBorder)
+            .controlSize(.large)
             .focused($taskFieldFocused)
             .onSubmit {
                 taskFieldFocused = false
             }
             .multilineTextAlignment(.center)
-            .font(.system(size: 14, weight: .medium))
-            .lineLimit(1)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background {
-                Capsule()
-                    .fill(Color.primary.opacity(0.05))
-            }
             .accessibilityLabel("Current task")
     }
 
@@ -231,54 +367,27 @@ struct ContentView: View {
     @ViewBuilder
     private var primaryControls: some View {
         if !useMouseControls {
-            if #available(macOS 26.0, *) {
-                GlassEffectContainer(spacing: 10) {
-                    HStack(spacing: 10) {
-                        Button(action: viewModel.toggleTimer) {
-                            primaryButtonLabel
-                        }
-                        .buttonStyle(.glassProminent)
-                        .keyboardShortcut(.space, modifiers: [])
-
-                        Button(action: viewModel.resetTimer) {
-                            secondaryButtonLabel
-                        }
-                        .buttonStyle(.glass)
-                    }
+            HStack(spacing: 10) {
+                Button(action: viewModel.toggleTimer) {
+                    Label(primaryActionTitle, systemImage: primaryButtonIcon)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.borderedProminent)
                 .tint(buttonTint)
-            } else {
-                HStack(spacing: 10) {
-                    Button(action: viewModel.toggleTimer) {
-                        primaryButtonLabel
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.space, modifiers: [])
+                .keyboardShortcut(.space, modifiers: [])
 
-                    Button(action: viewModel.resetTimer) {
-                        secondaryButtonLabel
-                    }
-                    .buttonStyle(.bordered)
+                Button(action: viewModel.resetTimer) {
+                    Label(
+                        viewModel.timerState == .finished ? "Stop" : "Reset",
+                        systemImage: viewModel.timerState == .finished ? "stop.fill" : "arrow.counterclockwise"
+                    )
+                    .frame(maxWidth: .infinity)
                 }
-                .tint(buttonTint)
+                .buttonStyle(.bordered)
             }
+            .controlSize(.large)
         }
-    }
-
-    private var primaryButtonLabel: some View {
-        Label(primaryActionTitle, systemImage: primaryButtonIcon)
-            .lineLimit(1)
-            .frame(maxWidth: .infinity)
-            .frame(height: 34)
-    }
-
-    private var secondaryButtonLabel: some View {
-        Label(
-            viewModel.timerState == .finished ? "Stop" : "Reset",
-            systemImage: viewModel.timerState == .finished ? "stop.fill" : "arrow.counterclockwise"
-        )
-        .frame(maxWidth: .infinity)
-        .frame(height: 34)
     }
 
     // MARK: - Footer
@@ -291,7 +400,6 @@ struct ContentView: View {
                 Image(systemName: "power")
             }
             .help("Quit Anchor")
-            .modifier(SecondaryGlassButtonModifier())
 
             Spacer()
 
@@ -303,7 +411,6 @@ struct ContentView: View {
                     Label("Open Window", systemImage: "macwindow")
                 }
                 .help("Open the timer in its own window")
-                .modifier(SecondaryGlassButtonModifier())
 
             case .window:
                 if minimalMode != "off" {
@@ -313,7 +420,6 @@ struct ContentView: View {
                         Image(systemName: "capsule")
                     }
                     .help("Switch to the small floating timer")
-                    .modifier(SecondaryGlassButtonModifier())
                 }
 
                 Button {
@@ -330,7 +436,6 @@ struct ContentView: View {
                         ? "Stop keeping this window above other windows"
                         : "Keep this window above other windows"
                 )
-                .modifier(SecondaryGlassButtonModifier())
             }
 
             Button {
@@ -341,8 +446,8 @@ struct ContentView: View {
                 Label("Settings", systemImage: "gearshape")
             }
             .help("Open Anchor Settings")
-            .modifier(SecondaryGlassButtonModifier())
         }
+        .buttonStyle(.bordered)
     }
 
     // MARK: - Derived state
@@ -351,10 +456,15 @@ struct ContentView: View {
         !zenMode || viewModel.timerState != .running
     }
 
+    /// The dial and its typing field only change the length before a timer starts.
+    private var canEditDuration: Bool {
+        viewModel.timerState == .stopped
+    }
+
     private var dialTint: Color {
         switch viewModel.timerState {
         case .finished:
-            return Palette.timesUpColor
+            return .orange
         case .paused:
             return viewModel.phase.tint.opacity(0.5)
         case .running, .stopped:
@@ -415,17 +525,6 @@ struct ContentView: View {
         }
     }
 
-    private func presetMinutes(for phase: TimerPhase) -> Int {
-        switch phase {
-        case .focus:
-            return standardTimer
-        case .shortBreak:
-            return shortBreak
-        case .longBreak:
-            return longBreak
-        }
-    }
-
     // MARK: - Actions
 
     private func applyPreset(_ phase: TimerPhase) {
@@ -439,100 +538,38 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Phase picker
+// MARK: - Dial parts
 
-/// Focus · Short Break · Long Break, with the current one filled in its own colour.
-private struct PhasePicker: View {
-    static let height: CGFloat = 32
-
-    let selection: TimerPhase
-    let minutes: (TimerPhase) -> Int
-    let select: (TimerPhase) -> Void
-
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(TimerPhase.allCases, id: \.self) { phase in
-                let isSelected = phase == selection
-
-                Button {
-                    select(phase)
-                } label: {
-                    Text(phase.title)
-                        .font(.system(size: 12, weight: .semibold))
-                        .lineLimit(1)
-                        .foregroundStyle(isSelected ? Color.white : Color.secondary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: Self.height - 6)
-                        .background {
-                            if isSelected {
-                                Capsule()
-                                    .fill(phase.tint)
-                            }
-                        }
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .help("\(phase.title), \(minutes(phase)) min")
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
-            }
-        }
-        .padding(3)
-        .background {
-            Capsule()
-                .fill(Color.primary.opacity(0.06))
-        }
-    }
-}
-
-// MARK: - Time disk
-
-/// A 60-minute dial: the coloured wedge is the time left, shrinking back toward 12 o'clock as it runs.
-private struct TimeDisk<Center: View>: View {
+/// A grey track with a coloured arc from 12 o'clock, clockwise: how much of the hour is left.
+private struct DialRing: View {
     let fraction: Double
     let tint: Color
-    let animation: Animation
-    var showsBezel = true
-    @ViewBuilder let center: Center
+    let lineWidth: CGFloat
+    let animation: Animation?
 
     var body: some View {
-        GeometryReader { proxy in
-            let size = min(proxy.size.width, proxy.size.height)
-            let faceInset = showsBezel ? size * 0.06 : 0
+        ZStack {
+            Circle()
+                .stroke(Color.primary.opacity(0.1), lineWidth: lineWidth)
 
-            ZStack {
-                if showsBezel {
-                    BezelTicks(major: false)
-                        .stroke(Color.primary.opacity(0.18), lineWidth: 1)
-
-                    BezelTicks(major: true)
-                        .stroke(Color.primary.opacity(0.4), style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                }
-
-                Circle()
-                    .fill(tint.opacity(0.13))
-                    .padding(faceInset)
-
-                Wedge(fraction: fraction)
-                    .fill(tint)
-                    .padding(faceInset)
-                    .animation(animation, value: fraction)
-
-                center
-            }
-            .frame(width: size, height: size)
+            Circle()
+                .trim(from: 0, to: fraction)
+                .stroke(tint, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(animation, value: fraction)
         }
-        .aspectRatio(1, contentMode: .fit)
+        .padding(lineWidth / 2)
     }
 }
 
-/// Minute marks around the edge of the dial, longer every five minutes.
-private struct BezelTicks: Shape {
+/// Minute marks around the outside of the dial, longer every five minutes.
+private struct DialTicks: Shape {
     let major: Bool
 
     func path(in rect: CGRect) -> Path {
         let center = CGPoint(x: rect.midX, y: rect.midY)
         let outer = min(rect.width, rect.height) / 2 - 1
-        let inner = outer - (major ? 7 : 3.5)
+        let inner = outer - (major ? 6 : 3)
         var path = Path()
 
         for minute in 0..<60 where (minute % 5 == 0) == major {
@@ -545,38 +582,27 @@ private struct BezelTicks: Shape {
     }
 }
 
-/// A slice of the dial from 12 o'clock, clockwise.
-private struct Wedge: Shape {
-    var fraction: Double
-
-    var animatableData: Double {
-        get { fraction }
-        set { fraction = newValue }
-    }
-
+/// The band around the ring that can be dragged: the whole dial minus the middle.
+private struct RingHitArea: Shape {
     func path(in rect: CGRect) -> Path {
-        guard fraction > 0 else {
-            return Path()
-        }
-
-        guard fraction < 1 else {
-            return Path(ellipseIn: rect)
-        }
-
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        var path = Path()
-        path.move(to: center)
-        // SwiftUI's y axis points down, so "clockwise: false" draws clockwise on screen.
-        path.addArc(
-            center: center,
-            radius: min(rect.width, rect.height) / 2,
-            startAngle: .degrees(-90),
-            endAngle: .degrees(-90 + 360 * fraction),
-            clockwise: false
-        )
-        path.closeSubpath()
+        var path = Path(ellipseIn: rect)
+        path.addEllipse(in: rect.insetBy(dx: rect.width * 0.25, dy: rect.height * 0.25))
         return path
     }
+}
+
+/// The frosted, see-through background used by menu bar popovers, behind the window and the popover alike.
+private struct VisualEffectBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .popover
+        view.blendingMode = .behindWindow
+        // Stay frosted while another app is in front, since the timer is often looked at from there.
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
 // MARK: - Minimal timer
@@ -595,15 +621,13 @@ struct MinimalTimerView: View {
 
             HStack(spacing: 10) {
                 HStack(spacing: 9) {
-                    TimeDisk(
+                    DialRing(
                         fraction: viewModel.dialFraction,
                         tint: tint,
-                        animation: viewModel.timerState == .running ? .linear(duration: 1) : .snappy(duration: 0.3),
-                        showsBezel: false
-                    ) {
-                        EmptyView()
-                    }
-                    .frame(width: 20, height: 20)
+                        lineWidth: 3,
+                        animation: viewModel.timerState == .running ? .linear(duration: 1) : .snappy(duration: 0.3)
+                    )
+                    .frame(width: 18, height: 18)
 
                     Text(viewModel.displayTime)
                         .font(.system(size: 17, weight: .semibold, design: .rounded))
@@ -612,7 +636,7 @@ struct MinimalTimerView: View {
 
                     Text(caption)
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(viewModel.timerState == .finished ? Palette.timesUpColor : .secondary)
+                        .foregroundStyle(viewModel.timerState == .finished ? .orange : .secondary)
                         .lineLimit(1)
                         .truncationMode(.tail)
 
@@ -656,13 +680,13 @@ struct MinimalTimerView: View {
     }
 
     private var tint: Color {
-        viewModel.timerState == .finished ? Palette.timesUpColor : viewModel.phase.tint
+        viewModel.timerState == .finished ? .orange : viewModel.phase.tint
     }
 
     private var timeColor: Color {
         switch viewModel.timerState {
         case .finished:
-            return Palette.timesUpColor
+            return .orange
         case .paused:
             return .secondary
         case .running, .stopped:
@@ -755,45 +779,18 @@ private struct SessionDots: View {
     }
 }
 
-private struct MouseCommandSurface<Content: View>: View {
-    let onSingleClick: () -> Void
-    let onTripleClick: () -> Void
-    let content: Content
+// MARK: - Mouse mode
 
-    init(
-        onSingleClick: @escaping () -> Void,
-        onTripleClick: @escaping () -> Void,
-        @ViewBuilder content: () -> Content
-    ) {
-        self.onSingleClick = onSingleClick
-        self.onTripleClick = onTripleClick
-        self.content = content()
-    }
-
-    var body: some View {
-        content
-            .overlay {
-                MouseClickRepresentable(
-                    onSingleClick: onSingleClick,
-                    onTripleClick: onTripleClick
-                )
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Timer controls")
-            .accessibilityHint(
-                "Click once to start, pause, or resume the timer. Triple-click to reset it."
-            )
-    }
-}
-
+/// Mouse mode on the dial: click to start or pause, triple-click to reset, drag to set the time.
 private struct MouseClickRepresentable: NSViewRepresentable {
     let onSingleClick: () -> Void
     let onTripleClick: () -> Void
+    let onDrag: (CGPoint) -> Void
+    let onDragEnd: () -> Void
 
     func makeNSView(context: Context) -> MouseClickNSView {
         let view = MouseClickNSView()
-        view.onSingleClick = onSingleClick
-        view.onTripleClick = onTripleClick
+        updateNSView(view, context: context)
         return view
     }
 
@@ -803,28 +800,27 @@ private struct MouseClickRepresentable: NSViewRepresentable {
     ) {
         nsView.onSingleClick = onSingleClick
         nsView.onTripleClick = onTripleClick
+        nsView.onDrag = onDrag
+        nsView.onDragEnd = onDragEnd
     }
 }
 
 private final class MouseClickNSView: NSView {
     var onSingleClick: (() -> Void)?
     var onTripleClick: (() -> Void)?
+    var onDrag: ((CGPoint) -> Void)?
+    var onDragEnd: (() -> Void)?
 
-    override var acceptsFirstResponder: Bool {
+    private var mouseDownLocation: CGPoint?
+    private var isDragging = false
+
+    // Top-left origin, the same as SwiftUI, so drag points can be used as they are.
+    override var isFlipped: Bool {
         true
     }
 
-    // The first click acts at once instead of waiting to see if more follow. A triple-click still ends in the
-    // same place, because a reset after a start or pause leaves the timer stopped either way.
-    override func mouseDown(with event: NSEvent) {
-        switch event.clickCount {
-        case 1:
-            onSingleClick?()
-        case 3:
-            onTripleClick?()
-        default:
-            break
-        }
+    override var acceptsFirstResponder: Bool {
+        true
     }
 
     override func acceptsFirstMouse(
@@ -832,21 +828,45 @@ private final class MouseClickNSView: NSView {
     ) -> Bool {
         true
     }
-}
 
-// MARK: - Secondary button modifier
+    override func mouseDown(with event: NSEvent) {
+        mouseDownLocation = convert(event.locationInWindow, from: nil)
+        isDragging = false
+    }
 
-private struct SecondaryGlassButtonModifier: ViewModifier {
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if #available(macOS 26.0, *) {
-            content
-                .buttonStyle(.glass)
-                .buttonBorderShape(.capsule)
-        } else {
-            content
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.capsule)
+    override func mouseDragged(with event: NSEvent) {
+        let location = convert(event.locationInWindow, from: nil)
+
+        // A few points of wobble is still a click.
+        if !isDragging, let start = mouseDownLocation, hypot(location.x - start.x, location.y - start.y) > 3 {
+            isDragging = true
+        }
+
+        if isDragging {
+            onDrag?(location)
+        }
+    }
+
+    // Clicks act on release, so a drag can be told apart from them. A triple-click still ends in the same
+    // place as a plain reset, because a reset after the first click's start or pause leaves the timer stopped.
+    override func mouseUp(with event: NSEvent) {
+        defer {
+            mouseDownLocation = nil
+            isDragging = false
+        }
+
+        if isDragging {
+            onDragEnd?()
+            return
+        }
+
+        switch event.clickCount {
+        case 1:
+            onSingleClick?()
+        case 3:
+            onTripleClick?()
+        default:
+            break
         }
     }
 }

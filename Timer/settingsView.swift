@@ -63,7 +63,7 @@ private struct GeneralSettings: View {
 
                 Toggle(isOn: $zenMode) {
                     Text("Zen Mode")
-                    Text("Hide the phase switcher and − / + while the timer runs.")
+                    Text("Hide the phase switcher while the timer runs.")
                 }
             }
 

@@ -150,7 +150,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
             ]
             if viewModel.timerState == .finished {
-                attributes[.foregroundColor] = Palette.timesUp
+                attributes[.foregroundColor] = NSColor.systemOrange
             }
             let style = UserDefaults.standard.string(forKey: "menuBarStyle") ?? "time"
 
@@ -482,24 +482,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         let hostingView = FirstMouseHostingView(rootView: MinimalTimerView(viewModel: viewModel))
         let cornerRadius = size.height / 2
 
-        if #available(macOS 26.0, *) {
-            let glass = NSGlassEffectView()
-            glass.cornerRadius = cornerRadius
-            glass.contentView = hostingView
-            panel.contentView = glass
-        } else {
-            let background = NSVisualEffectView()
-            background.material = .popover
-            background.blendingMode = .behindWindow
-            background.state = .active
-            background.wantsLayer = true
-            background.layer?.cornerRadius = cornerRadius
-            background.layer?.masksToBounds = true
-            hostingView.frame = background.bounds
-            hostingView.autoresizingMask = [.width, .height]
-            background.addSubview(hostingView)
-            panel.contentView = background
+        // Frosted like the main window. A behind-window blur ignores layer masks, so the capsule shape is a mask image.
+        let background = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
+        background.material = .popover
+        background.blendingMode = .behindWindow
+        background.state = .active
+        background.maskImage = NSImage(size: size, flipped: false) { rect in
+            NSBezierPath(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius).fill()
+            return true
         }
+        hostingView.frame = background.bounds
+        hostingView.autoresizingMask = [.width, .height]
+        background.addSubview(hostingView)
+        panel.contentView = background
 
         panel.setFrameAutosaveName("MinimalTimer")
         if !panel.setFrameUsingName("MinimalTimer") {

@@ -66,12 +66,12 @@ final class TimerViewModel: ObservableObject {
     }
 
     /// How much of a 60-minute dial the time left fills, so 25 minutes always looks like 25 minutes
-    /// and a 5-minute break looks short. Empty once time is up.
+    /// and a 5-minute break looks short. Full once time is up, so the whole ring turns orange.
     var dialFraction: Double {
-        timerState == .finished ? 0 : min(1, Double(remainingTime) / Double(Self.maximumMinutes * 60))
+        timerState == .finished ? 1 : min(1, Double(remainingTime) / Double(Self.maximumMinutes * 60))
     }
 
-    /// The longest session the dial and the − / + buttons allow.
+    /// The longest session the dial allows.
     static let maximumMinutes = 60
 
     /// When the running timer will reach zero, on the wall clock.
@@ -154,13 +154,15 @@ final class TimerViewModel: ObservableObject {
         updateRemainingTime()
     }
 
-    /// The − / + buttons: change the length of a timer that hasn't started yet.
-    func adjustDuration(by minutes: Int) {
-        guard timerState == .stopped else {
+    /// Dragging the dial or typing in it: set the length of a timer that hasn't started yet.
+    func setDuration(minutes: Int) {
+        let minutes = min(Self.maximumMinutes, max(1, minutes))
+
+        guard timerState == .stopped, minutes != Int(timerDuration) else {
             return
         }
 
-        timerDuration = Double(min(Self.maximumMinutes, max(1, Int(timerDuration) + minutes)))
+        timerDuration = Double(minutes)
         updateRemainingTime()
     }
 
