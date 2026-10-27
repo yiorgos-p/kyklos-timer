@@ -674,47 +674,35 @@ private struct RingHitArea: Shape {
 
 // MARK: - Minimal timer
 
-/// The small floating pill: ring, time, task and one button. Drag it anywhere; double-click for the full window.
-/// While the pointer is over it, the ring turns into a close button.
+/// The small floating pill: ring, time, task, the main button and a close button. Drag it anywhere; double-click
+/// for the full window.
 struct MinimalTimerView: View {
     @ObservedObject var viewModel: TimerViewModel
 
     @State private var isEditingMinutes = false
     @State private var minutesText = ""
     @FocusState private var minutesFieldFocused: Bool
-    @State private var isHovering = false
 
-    static let size = CGSize(width: 260, height: 44)
+    static let size = CGSize(width: 292, height: 44)
 
     var body: some View {
         ZStack {
-            WindowDragArea(
-                onDoubleClick: {
-                    AppDelegate.shared?.showMainWindow()
-                },
-                onHover: { hovering in
-                    withAnimation(.easeOut(duration: 0.15)) {
-                        isHovering = hovering
-                    }
-                }
-            )
+            WindowDragArea {
+                AppDelegate.shared?.showMainWindow()
+            }
 
             HStack(spacing: 10) {
                 HStack(spacing: 9) {
-                    if isHovering {
-                        closeButton
-                    } else {
-                        DialRing(
-                            fraction: viewModel.dialFraction,
-                            tint: tint,
-                            lineWidth: 3,
-                            // Stepped once a second while running, like the big dial; animated only for jumps.
-                            animation: viewModel.timerState == .running ? nil : .snappy(duration: 0.3)
-                        )
-                        .frame(width: 18, height: 18)
-                        // Clicks fall through to the drag area underneath.
-                        .allowsHitTesting(false)
-                    }
+                    DialRing(
+                        fraction: viewModel.dialFraction,
+                        tint: tint,
+                        lineWidth: 3,
+                        // Stepped once a second while running, like the big dial; animated only for jumps.
+                        animation: viewModel.timerState == .running ? nil : .snappy(duration: 0.3)
+                    )
+                    .frame(width: 18, height: 18)
+                    // Clicks fall through to the drag area underneath.
+                    .allowsHitTesting(false)
 
                     time
 
@@ -728,7 +716,10 @@ struct MinimalTimerView: View {
                     Spacer(minLength: 0)
                 }
 
-                actionButton
+                HStack(spacing: 6) {
+                    actionButton
+                    closeButton
+                }
             }
             .padding(.leading, 14)
             .padding(.trailing, 6)
@@ -785,12 +776,12 @@ struct MinimalTimerView: View {
         Button {
             AppDelegate.shared?.closeMinimalTimer()
         } label: {
-            Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 17))
-                .foregroundStyle(.secondary)
+            Image(systemName: "xmark")
+                .font(.system(size: 12, weight: .bold))
+                .frame(width: 16, height: 16)
         }
-        .buttonStyle(.plain)
-        .frame(width: 18, height: 18)
+        .glassButtonStyle()
+        .buttonBorderShape(.circle)
         .help("Close")
     }
 
@@ -867,49 +858,24 @@ struct MinimalTimerView: View {
     }
 }
 
-/// Moves the window when dragged and reports double-clicks and hovering; SwiftUI has no window drag gesture before
-/// macOS 15, and its hover tracking stops while the app is in the background, where the pill usually is.
+/// Moves the window when dragged and reports double-clicks; SwiftUI has no window drag gesture before macOS 15.
 private struct WindowDragArea: NSViewRepresentable {
     let onDoubleClick: () -> Void
-    let onHover: (Bool) -> Void
 
     func makeNSView(context: Context) -> WindowDragNSView {
         let view = WindowDragNSView()
         view.onDoubleClick = onDoubleClick
-        view.onHover = onHover
         view.toolTip = "Drag to move. Double-click for the full window."
         return view
     }
 
     func updateNSView(_ nsView: WindowDragNSView, context: Context) {
         nsView.onDoubleClick = onDoubleClick
-        nsView.onHover = onHover
     }
 }
 
 private final class WindowDragNSView: NSView {
     var onDoubleClick: (() -> Void)?
-    var onHover: ((Bool) -> Void)?
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-
-        if trackingAreas.isEmpty {
-            addTrackingArea(NSTrackingArea(
-                rect: .zero,
-                options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-                owner: self
-            ))
-        }
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        onHover?(true)
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        onHover?(false)
-    }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
         true
