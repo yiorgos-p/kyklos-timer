@@ -846,34 +846,21 @@ private final class MouseClickNSView: NSView {
     var onSingleClick: (() -> Void)?
     var onTripleClick: (() -> Void)?
 
-    private var pendingSingleClick: DispatchWorkItem?
-
     override var acceptsFirstResponder: Bool {
         true
     }
 
+    // The first click acts at once instead of waiting to see if more follow. A triple-click still ends in the
+    // same place, because a reset after a start or pause leaves the timer stopped either way.
     override func mouseDown(with event: NSEvent) {
-        pendingSingleClick?.cancel()
-
-        if event.clickCount == 3 {
-            pendingSingleClick = nil
+        switch event.clickCount {
+        case 1:
+            onSingleClick?()
+        case 3:
             onTripleClick?()
-            return
+        default:
+            break
         }
-
-        guard event.clickCount == 1 || event.clickCount == 2 else {
-            return
-        }
-
-        let workItem = DispatchWorkItem { [weak self] in
-            self?.onSingleClick?()
-        }
-        pendingSingleClick = workItem
-
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + NSEvent.doubleClickInterval,
-            execute: workItem
-        )
     }
 
     override func acceptsFirstMouse(
