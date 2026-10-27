@@ -447,7 +447,7 @@ struct ContentView: View {
     }
 
     private var appDelegate: AppDelegate? {
-        NSApp.delegate as? AppDelegate
+        AppDelegate.shared
     }
 }
 

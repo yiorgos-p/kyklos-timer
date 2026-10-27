@@ -5,6 +5,9 @@ import UserNotifications
 import Carbon.HIToolbox
 
 class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+    /// SwiftUI installs its own object as NSApp.delegate, so views reach this one through here instead.
+    private(set) static weak var shared: AppDelegate?
+
     var statusItem: NSStatusItem!
     var popover: NSPopover!
     var viewModel: TimerViewModel!
@@ -16,6 +19,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     private var showsInDock: Bool?
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        Self.shared = self
+
         if Bundle.main.bundleURL.pathExtension == "app" {
             UNUserNotificationCenter.current().delegate = self
         }
