@@ -12,7 +12,7 @@ Anchor is based on [Cloud](https://github.com/YYUUGGOO/Cloud) by David.
 - A "What are you working on?" line, shown in the window and next to the time in the menu bar
 - A 60-minute dial: the coloured wedge is the time left, so 25 minutes always looks like 25 minutes, plus the time it will end
 - Set the length with − and + beside the dial, or pick Focus, Short Break or Long Break
-- Today's finished focus sessions, shown as dots (right-click to reset)
+- Today's finished focus sessions, shown as dots, with a button to reset them
 - Accurate to the system clock: keeps counting through sleep and never drifts
 - A notification and an alarm when time is up, with the alarm ringing again every minute for up to 10 minutes
 - A global shortcut to start or pause from any app: ⌃⌥A, or one you pick
