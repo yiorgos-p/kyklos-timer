@@ -37,7 +37,7 @@
           "glass": false,
           "image-name": "ticks.svg",
           "name": "ticks",
-          "opacity": 0.45
+          "opacity": 0.8
         }
       ],
       "shadow": {

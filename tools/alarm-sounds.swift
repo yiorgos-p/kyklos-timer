@@ -71,7 +71,7 @@ func write(_ samples: [Float], to url: URL) throws {
 }
 
 // Note frequencies, in hertz.
-let g4 = 392.0, c5 = 523.25, e5 = 659.26, g5 = 783.99, c6 = 1046.5, e6 = 1318.5
+let f3 = 174.61, g3 = 196.0, c4 = 261.63, g4 = 392.0, c5 = 523.25, e5 = 659.26, g5 = 783.99, c6 = 1046.5, e6 = 1318.5
 
 /// A struck metal bar: a strong fundamental and a few quickly fading, slightly out-of-tune overtones.
 let bar = Instrument(partials: [
@@ -106,6 +106,23 @@ let ping = Instrument(partials: [
     Partial(ratio: 3, level: 0.05, decay: 0.06)
 ], attack: 0.008)
 
+/// A felt mallet on a low wooden bar: no hard edge and almost nothing above 1 kHz, gentle on sensitive ears.
+let felt = Instrument(partials: [
+    Partial(ratio: 1, level: 1, decay: 0.9),
+    Partial(ratio: 2, level: 0.3, decay: 0.45),
+    Partial(ratio: 3, level: 0.08, decay: 0.25),
+    Partial(ratio: 4, level: 0.03, decay: 0.12)
+], attack: 0.012)
+
+/// A large, low singing bowl, struck softly, with its highest ringing left out.
+let lowBowl = Instrument(partials: [
+    Partial(ratio: 1, level: 1, decay: 3),
+    Partial(ratio: 1, level: 0.7, decay: 3, detune: 1.2),
+    Partial(ratio: 2.71, level: 0.4, decay: 2),
+    Partial(ratio: 2.71, level: 0.25, decay: 2, detune: 1.8),
+    Partial(ratio: 5.12, level: 0.1, decay: 0.8)
+], attack: 0.02)
+
 func twice(_ notes: [Note], gap: Double) -> [Note] {
     notes + notes.map { Note(time: $0.time + gap, frequency: $0.frequency, velocity: $0.velocity) }
 }
@@ -117,6 +134,10 @@ let sounds: [(String, [Float])] = [
     ("Bowl", render(bowl, [Note(time: 0, frequency: g4, velocity: 1), Note(time: 1.8, frequency: g4, velocity: 0.85)], length: 5)),
     // A quick rising arpeggio, played twice.
     ("Marimba", render(wood, twice([c5, e5, g5, c6].enumerated().map { Note(time: Double($0.offset) * 0.11, frequency: $0.element, velocity: 1) }, gap: 1), length: 2.6)),
+    // Two low, soft rising notes, played twice.
+    ("Felt", render(felt, twice([Note(time: 0, frequency: g3, velocity: 0.85), Note(time: 0.22, frequency: c4, velocity: 1)], gap: 1.4), length: 3.8)),
+    // Two soft strikes of a low bowl.
+    ("Low Bowl", render(lowBowl, [Note(time: 0, frequency: f3, velocity: 1), Note(time: 1.8, frequency: f3, velocity: 0.85)], length: 5)),
     // Three pings, twice.
     ("Beacon", render(ping, twice([0, 0.14, 0.28].map { Note(time: $0, frequency: e6, velocity: $0 == 0.28 ? 1 : 0.8) }, gap: 1), length: 2.4))
 ]

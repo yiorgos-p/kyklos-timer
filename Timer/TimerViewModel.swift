@@ -373,7 +373,7 @@ final class TimerViewModel: ObservableObject {
 
     /// The sounds that come with kyklos, as named in Settings. Cloud is the alarm of the app kyklos started from;
     /// the others are synthesized by tools/alarm-sounds.swift.
-    static let builtInAlarms = ["Chime", "Bowl", "Marimba", "Beacon", "Cloud"]
+    static let builtInAlarms = ["Chime", "Felt", "Bowl", "Low Bowl", "Marimba", "Beacon", "Cloud"]
     static let defaultAlarm = "Chime"
     /// The "alarmSound" setting for a file the user picked, rather than a built-in name.
     static let customAlarm = "custom"
