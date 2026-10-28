@@ -25,12 +25,20 @@ kyklos started as a fork of [Cloud](https://github.com/YYUUGGOO/Cloud) by David 
 - Launch at Login support
 - No ads and no data collection
 
-## Requirements
+## Download
 
-- macOS 14 or later
-- Xcode with support for building macOS 14 applications
+kyklos needs macOS 14 or later. It's made and tested on macOS 27; reports from older versions are welcome.
+
+1. Download `kyklos.zip` from the [latest release](../../releases/latest), unzip it, and move kyklos to Applications.
+2. Open it. macOS will say it can't check kyklos for malicious software, because the app isn't notarised by Apple
+   (that takes a paid developer account). Click Done.
+3. Open System Settings → Privacy & Security, scroll down to the message about kyklos, and click Open Anyway.
+
+You only need to do this once.
 
 ## Build from source
+
+You need Xcode.
 
 1. Open `Timer.xcodeproj` in Xcode.
 2. Allow Xcode to resolve the Swift package dependency.
@@ -47,6 +55,10 @@ The app ends up in `build/Build/Products/Release/kyklos.app`.
 ## Dependency
 
 - [LaunchAtLogin-Modern](https://github.com/sindresorhus/LaunchAtLogin-Modern)
+
+## Support
+
+kyklos is free and will stay free. If it helps you, you can [buy me a coffee on Ko-fi](https://ko-fi.com/yiorgosp).
 
 ## License
 
