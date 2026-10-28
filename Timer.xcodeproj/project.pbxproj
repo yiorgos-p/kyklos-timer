@@ -21,6 +21,7 @@
 		7A11A1012E9F000000000001 /* Bowl.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7A11A1002E9F000000000001 /* Bowl.m4a */; };
 		7A11A2012E9F000000000001 /* Marimba.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7A11A2002E9F000000000001 /* Marimba.m4a */; };
 		7A11A3012E9F000000000001 /* Beacon.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7A11A3002E9F000000000001 /* Beacon.m4a */; };
+		7A11B0012E9F000000000002 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 7A11B0002E9F000000000002 /* AppIcon.icon */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -58,6 +59,7 @@
 		7A11A1002E9F000000000001 /* Bowl.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = Bowl.m4a; sourceTree = "<group>"; };
 		7A11A2002E9F000000000001 /* Marimba.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = Marimba.m4a; sourceTree = "<group>"; };
 		7A11A3002E9F000000000001 /* Beacon.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = Beacon.m4a; sourceTree = "<group>"; };
+		7A11B0002E9F000000000002 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -113,6 +115,7 @@
 				637D39D12C3FA3DC0084ACA9 /* AppDelegate.swift */,
 				637D39A82C3F9D810084ACA9 /* ContentView.swift */,
 				63A4CD292C44967A00A50D41 /* settingsView.swift */,
+				7A11B0002E9F000000000002 /* AppIcon.icon */,
 				637D39AA2C3F9D820084ACA9 /* Assets.xcassets */,
 				637D39AF2C3F9D820084ACA9 /* Timer.entitlements */,
 				7A11A0FF2E9F000000000001 /* Sounds */,
@@ -253,6 +256,7 @@
 			files = (
 				637D39AE2C3F9D820084ACA9 /* Preview Assets.xcassets in Resources */,
 				637D39AB2C3F9D820084ACA9 /* Assets.xcassets in Resources */,
+				7A11B0012E9F000000000002 /* AppIcon.icon in Resources */,
 				63313B1E2C40DCA20016C932 /* Cloud.mp3 in Resources */,
 				7A11A0012E9F000000000001 /* Chime.m4a in Resources */,
 				7A11A1012E9F000000000001 /* Bowl.m4a in Resources */,
