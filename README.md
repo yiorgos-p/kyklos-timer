@@ -39,7 +39,8 @@ kyklos started as a fork of [Cloud](https://github.com/YYUUGGOO/Cloud) by David 
 
 kyklos needs macOS 14 or later. It's made and tested on macOS 27; reports from older versions are welcome.
 
-1. Download `kyklos.zip` from the [latest release](../../releases/latest), unzip it, and move kyklos to Applications.
+1. Download `kyklos.zip` from the [latest release](../../releases/latest) and unzip it (Safari does this for you),
+   then move kyklos to Applications.
 2. Open it. macOS will say it can't check kyklos for malicious software, because the app isn't notarised by Apple
    (that takes a paid developer account). Click Done.
 3. Open System Settings → Privacy & Security, scroll down to the message about kyklos, and click Open Anyway.
