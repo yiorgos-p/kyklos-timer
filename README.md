@@ -32,6 +32,7 @@ kyklos started as a fork of [Cloud](https://github.com/YYUUGGOO/Cloud) by David 
 - Built with Liquid Glass on macOS 26 and later; older versions get standard controls
 - An app icon that follows macOS 26's Dark, Clear and Tinted icon styles
 - Launch at Login support
+- A native Mac app, light on resources: about 75 MB of memory and well under 1% of the CPU
 - No ads and no data collection
 
 ## Download
