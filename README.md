@@ -5,6 +5,13 @@ wandering mind on one thing at a time.
 
 kyklos started as a fork of [Cloud](https://github.com/YYUUGGOO/Cloud) by David and has since been almost entirely rewritten.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/screenshot-dark.png">
+    <img src=".github/screenshot-light.png" width="360" alt="kyklos during a focus session: a dial with a blue arc and 36:21 left, the task &quot;Working on a school project&quot;, and Pause and Reset buttons">
+  </picture>
+</p>
+
 ## Features
 
 - Focus, Short Break and Long Break, with a long break after every 4 focus sessions (2 to 8, your choice)
@@ -22,6 +29,8 @@ kyklos started as a fork of [Cloud](https://github.com/YYUUGGOO/Cloud) by David 
 - Optional Minimal Mode: a small floating pill with the time, the task and one button, shown during a session or all the time
 - A window that can stay on top of other windows
 - Light and Dark Mode, following your Mac or set by hand
+- Built with Liquid Glass on macOS 26 and later; older versions get standard controls
+- An app icon that follows macOS 26's Dark, Clear and Tinted icon styles
 - Launch at Login support
 - No ads and no data collection
 
