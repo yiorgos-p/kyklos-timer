@@ -15,7 +15,7 @@ kyklos started as a fork of [Cloud](https://github.com/YYUUGGOO/Cloud) by David 
 - Today's finished focus sessions, shown as dots, with a button to reset them
 - Accurate to the system clock: keeps counting through sleep and never drifts
 - A notification and an alarm when time is up, with the alarm ringing again every minute for up to 10 minutes
-- Seven alarm sounds to choose from, two of them low and soft, or your own: any audio file up to 30 seconds
+- A choice of alarm sounds, including low, soft ones, or your own: any audio file up to 30 seconds
 - A global shortcut to start or pause from any app: ⌃⌥K, or one you pick
 - Optional mouse mode: click the dial to start or pause, and triple-click it to reset
 - Optional Zen Mode that hides the phase switcher while the timer is running

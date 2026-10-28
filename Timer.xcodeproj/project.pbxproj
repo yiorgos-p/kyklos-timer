@@ -24,6 +24,8 @@
 		7A11B0012E9F000000000002 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 7A11B0002E9F000000000002 /* AppIcon.icon */; };
 		7A11C0012E9F000000000003 /* Felt.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0002E9F000000000003 /* Felt.m4a */; };
 		7A11C0112E9F000000000003 /* Low Bowl.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0102E9F000000000003 /* Low Bowl.m4a */; };
+		7A11D0012E9F000000000004 /* Pop.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7A11D0002E9F000000000004 /* Pop.m4a */; };
+		7A11D0112E9F000000000004 /* Digital.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 7A11D0102E9F000000000004 /* Digital.m4a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -64,6 +66,8 @@
 		7A11B0002E9F000000000002 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		7A11C0002E9F000000000003 /* Felt.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = Felt.m4a; sourceTree = "<group>"; };
 		7A11C0102E9F000000000003 /* Low Bowl.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Low Bowl.m4a"; sourceTree = "<group>"; };
+		7A11D0002E9F000000000004 /* Pop.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = Pop.m4a; sourceTree = "<group>"; };
+		7A11D0102E9F000000000004 /* Digital.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = Digital.m4a; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -140,6 +144,8 @@
 			isa = PBXGroup;
 			children = (
 				7A11A0002E9F000000000001 /* Chime.m4a */,
+				7A11D0002E9F000000000004 /* Pop.m4a */,
+				7A11D0102E9F000000000004 /* Digital.m4a */,
 				7A11C0002E9F000000000003 /* Felt.m4a */,
 				7A11C0102E9F000000000003 /* Low Bowl.m4a */,
 				7A11A1002E9F000000000001 /* Bowl.m4a */,
@@ -264,6 +270,8 @@
 				637D39AB2C3F9D820084ACA9 /* Assets.xcassets in Resources */,
 				7A11B0012E9F000000000002 /* AppIcon.icon in Resources */,
 				63313B1E2C40DCA20016C932 /* Cloud.mp3 in Resources */,
+				7A11D0012E9F000000000004 /* Pop.m4a in Resources */,
+				7A11D0112E9F000000000004 /* Digital.m4a in Resources */,
 				7A11C0012E9F000000000003 /* Felt.m4a in Resources */,
 				7A11C0112E9F000000000003 /* Low Bowl.m4a in Resources */,
 				7A11A0012E9F000000000001 /* Chime.m4a in Resources */,
