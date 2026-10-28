@@ -2,7 +2,8 @@
 //
 //   xcrun swiftc -O tools/alarm-sounds.swift -o /tmp/alarm-sounds && /tmp/alarm-sounds <output folder>
 //
-// It writes one WAV per sound. Each was then brought to about the old alarm's loudness (-17 LUFS) and encoded:
+// It writes one WAV per sound. Each was then brought to about the old alarm's loudness (-17 LUFS; Digital a little
+// louder, -15) and encoded:
 //   ffmpeg -i chime.wav -af "volume=<gain>dB,alimiter=limit=0.9:level=false" -c:a pcm_s24le chime-level.wav
 //   afconvert -f m4af -d aac -b 96000 chime-level.wav Timer/Sounds/Chime.m4a
 
@@ -137,11 +138,14 @@ let bubble = Instrument(partials: [
     Partial(ratio: 2, level: 0.12, decay: 0.04)
 ], attack: 0.004, glide: 0.35, glideTime: 0.025, length: 0.2)
 
-/// A digital watch beep, rounded off: a softened square wave, low, with only its first two overtones.
+/// A digital watch beep, rounded off: low and steady for its length, with overtones up to about 2 kHz so it's clear
+/// rather than muffled, but none of a real watch's 4 kHz edge.
 let digital = Instrument(partials: [
-    Partial(ratio: 1, level: 1, decay: 0.25),
-    Partial(ratio: 3, level: 0.18, decay: 0.15),
-    Partial(ratio: 5, level: 0.05, decay: 0.08)
+    Partial(ratio: 1, level: 1, decay: 0.5),
+    Partial(ratio: 2, level: 0.2, decay: 0.4),
+    Partial(ratio: 3, level: 0.26, decay: 0.3),
+    Partial(ratio: 4, level: 0.06, decay: 0.25),
+    Partial(ratio: 5, level: 0.08, decay: 0.2)
 ], attack: 0.004, length: 0.11)
 
 /// The rhythm of a digital watch alarm: two quick notes, once a second, four times.
