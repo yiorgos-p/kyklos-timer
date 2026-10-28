@@ -15,7 +15,7 @@ kyklos started as a fork of [Cloud](https://github.com/YYUUGGOO/Cloud) by David 
 - Today's finished focus sessions, shown as dots, with a button to reset them
 - Accurate to the system clock: keeps counting through sleep and never drifts
 - A notification and an alarm when time is up, with the alarm ringing again every minute for up to 10 minutes
-- Your own alarm sound if you like: any audio file up to 30 seconds
+- Five alarm sounds to choose from, or your own: any audio file up to 30 seconds
 - A global shortcut to start or pause from any app: ⌃⌥K, or one you pick
 - Optional mouse mode: click the dial to start or pause, and triple-click it to reset
 - Optional Zen Mode that hides the phase switcher while the timer is running
@@ -51,4 +51,5 @@ The app ends up in `build/Build/Products/Release/kyklos.app`.
 ## License
 
 kyklos is licensed under the GNU General Public License v3.0. It still contains parts of Cloud (some code and the
-default alarm sound), which is licensed under the same terms; those parts are © David.
+"Cloud" alarm sound), which is licensed under the same terms; those parts are © David. The other alarm sounds
+are synthesized by `tools/alarm-sounds.swift`.

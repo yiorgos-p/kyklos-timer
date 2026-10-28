@@ -1,24 +1,11 @@
 # Security Policy
 
-## Supported Versions
+Only the latest release of kyklos gets fixes.
 
-The latest major release of Cloud is supported with security updates.
+## Reporting a vulnerability
 
-| Version | Supported |
-| ------- | --------- |
-| 2.x | ✅ |
-| < 2.0 | ❌ |
+If you find a security problem, please report it privately through a GitHub security advisory on this repository
+rather than in a public issue. Include what you found, how to reproduce it, and the kyklos version
+(Settings → About).
 
-## Reporting a Vulnerability
-
-If you believe you have discovered a security vulnerability in Cloud, please open a **private security advisory** on GitHub or contact me directly.
-
-Please include:
-- A description of the issue
-- Steps to reproduce it
-- The affected version of Cloud
-- Any proof-of-concept or supporting information
-
-Reports will be acknowledged as soon as reasonably possible. Valid vulnerabilities will be investigated, fixed, and disclosed responsibly in a future release. Please do not publicly disclose security issues until a fix is available.
-
-Thank you for helping keep Cloud secure.
+I'll reply as soon as I can, fix confirmed problems in the next release, and credit you if you'd like.

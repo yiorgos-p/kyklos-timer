@@ -181,12 +181,16 @@ private struct GeneralSettings: View {
     }
 }
 
-/// The alarm: the built-in sound, or any short audio file the user picks.
+/// The alarm: one of the built-in sounds, or any short audio file the user picks.
 private struct AlarmSoundRow: View {
+    @AppStorage("alarmSound") private var alarmSound = TimerViewModel.defaultAlarm
     @AppStorage("customAlarmName") private var customAlarmName: String?
     @State private var isPreviewing = false
     @State private var previewEnd: DispatchWorkItem?
     @State private var message: String?
+
+    /// The menu item that opens the file panel instead of selecting anything.
+    private static let chooseFile = "choose"
 
     private var viewModel: TimerViewModel? {
         AppDelegate.shared?.viewModel
@@ -195,23 +199,27 @@ private struct AlarmSoundRow: View {
     var body: some View {
         LabeledContent {
             HStack(spacing: 8) {
+                Picker("Alarm sound", selection: selection) {
+                    ForEach(TimerViewModel.builtInAlarms, id: \.self) { name in
+                        Text(name).tag(name)
+                    }
+
+                    Divider()
+
+                    if let customAlarmName {
+                        Text(customAlarmName).tag(TimerViewModel.customAlarm)
+                    }
+                    Text("Choose File…").tag(Self.chooseFile)
+                }
+                .labelsHidden()
+                .fixedSize()
+
                 Button(isPreviewing ? "Stop" : "Play") {
                     isPreviewing ? stopPreview() : startPreview()
-                }
-
-                Button("Choose…", action: chooseSound)
-
-                if customAlarmName != nil {
-                    Button("Use Default") {
-                        stopPreview()
-                        viewModel?.useDefaultAlarm()
-                        message = nil
-                    }
                 }
             }
         } label: {
             Text("Alarm sound")
-            Text(customAlarmName ?? "Default")
 
             if let message {
                 Text(message)
@@ -220,6 +228,26 @@ private struct AlarmSoundRow: View {
         }
         .onDisappear {
             stopPreview()
+        }
+    }
+
+    /// Picking a sound plays it, like the alert sounds in System Settings.
+    private var selection: Binding<String> {
+        Binding {
+            let isValid = TimerViewModel.builtInAlarms.contains(alarmSound)
+                || (alarmSound == TimerViewModel.customAlarm && customAlarmName != nil)
+            return isValid ? alarmSound : TimerViewModel.defaultAlarm
+        } set: { newValue in
+            stopPreview()
+            message = nil
+
+            if newValue == Self.chooseFile {
+                // Let the menu close before the panel opens.
+                DispatchQueue.main.async(execute: chooseSound)
+            } else {
+                alarmSound = newValue
+                startPreview()
+            }
         }
     }
 
@@ -240,6 +268,7 @@ private struct AlarmSoundRow: View {
         do {
             try viewModel?.setCustomAlarm(from: url)
             message = nil
+            startPreview()
         } catch {
             message = error.localizedDescription
         }

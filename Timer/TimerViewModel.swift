@@ -371,6 +371,13 @@ final class TimerViewModel: ObservableObject {
 
     // MARK: - Alarm
 
+    /// The sounds that come with kyklos, as named in Settings. Cloud is the alarm of the app kyklos started from;
+    /// the others are synthesized by tools/alarm-sounds.swift.
+    static let builtInAlarms = ["Chime", "Bowl", "Marimba", "Beacon", "Cloud"]
+    static let defaultAlarm = "Chime"
+    /// The "alarmSound" setting for a file the user picked, rather than a built-in name.
+    static let customAlarm = "custom"
+
     /// Limits for a sound picked in Settings: it rings again every minute in overtime, so it has to be short.
     static let maximumAlarmSeconds: TimeInterval = 30
     static let maximumAlarmBytes = 20 * 1024 * 1024
@@ -435,13 +442,7 @@ final class TimerViewModel: ObservableObject {
         try FileManager.default.copyItem(at: url, to: destination)
 
         defaults.set(url.lastPathComponent, forKey: "customAlarmName")
-        alarm.stop()
-    }
-
-    func useDefaultAlarm() {
-        removeCustomAlarmFile()
-        UserDefaults.standard.removeObject(forKey: "customAlarmFile")
-        UserDefaults.standard.removeObject(forKey: "customAlarmName")
+        defaults.set(Self.customAlarm, forKey: "alarmSound")
         alarm.stop()
     }
 
@@ -451,9 +452,17 @@ final class TimerViewModel: ObservableObject {
         }
     }
 
+    private static func builtInAlarmURL(named name: String) -> URL? {
+        ["m4a", "mp3"].lazy.compactMap { Bundle.main.url(forResource: name, withExtension: $0) }.first
+    }
+
     func playAlarmSound() {
-        // The picked sound if there is one and it still opens, otherwise the built-in one.
-        let candidates = [Self.customAlarmURL, Bundle.main.url(forResource: "alarm", withExtension: "mp3")]
+        // The chosen sound if it still opens, otherwise the default one.
+        let chosen = UserDefaults.standard.string(forKey: "alarmSound") ?? Self.defaultAlarm
+        let candidates = [
+            chosen == Self.customAlarm ? Self.customAlarmURL : Self.builtInAlarmURL(named: chosen),
+            Self.builtInAlarmURL(named: Self.defaultAlarm)
+        ]
         alarm.play(candidates.compactMap { $0 })
     }
 
