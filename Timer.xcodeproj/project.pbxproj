@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		632108442C53E8B7002D790E /* TimerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632108432C53E8B7002D790E /* TimerState.swift */; };
 		63313B1C2C40276C0016C932 /* TimerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63313B1B2C40276C0016C932 /* TimerViewModel.swift */; };
-		63313B1E2C40DCA20016C932 /* Cloud.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 63313B1D2C40DCA20016C932 /* Cloud.mp3 */; };
+		63313B1E2C40DCA20016C932 /* Classic.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 63313B1D2C40DCA20016C932 /* Classic.mp3 */; };
 		637D39A72C3F9D810084ACA9 /* TimerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637D39A62C3F9D810084ACA9 /* TimerApp.swift */; };
 		637D39A92C3F9D810084ACA9 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637D39A82C3F9D810084ACA9 /* ContentView.swift */; };
 		637D39AB2C3F9D820084ACA9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 637D39AA2C3F9D820084ACA9 /* Assets.xcassets */; };
@@ -48,7 +48,7 @@
 /* Begin PBXFileReference section */
 		632108432C53E8B7002D790E /* TimerState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerState.swift; sourceTree = "<group>"; };
 		63313B1B2C40276C0016C932 /* TimerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerViewModel.swift; sourceTree = "<group>"; };
-		63313B1D2C40DCA20016C932 /* Cloud.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = Cloud.mp3; sourceTree = "<group>"; };
+		63313B1D2C40DCA20016C932 /* Classic.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = Classic.mp3; sourceTree = "<group>"; };
 		637D39A32C3F9D810084ACA9 /* Timer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Timer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		637D39A62C3F9D810084ACA9 /* TimerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerApp.swift; sourceTree = "<group>"; };
 		637D39A82C3F9D810084ACA9 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -151,7 +151,7 @@
 				7A11A1002E9F000000000001 /* Bowl.m4a */,
 				7A11A2002E9F000000000001 /* Marimba.m4a */,
 				7A11A3002E9F000000000001 /* Beacon.m4a */,
-				63313B1D2C40DCA20016C932 /* Cloud.mp3 */,
+				63313B1D2C40DCA20016C932 /* Classic.mp3 */,
 			);
 			path = Sounds;
 			sourceTree = "<group>";
@@ -269,7 +269,7 @@
 				637D39AE2C3F9D820084ACA9 /* Preview Assets.xcassets in Resources */,
 				637D39AB2C3F9D820084ACA9 /* Assets.xcassets in Resources */,
 				7A11B0012E9F000000000002 /* AppIcon.icon in Resources */,
-				63313B1E2C40DCA20016C932 /* Cloud.mp3 in Resources */,
+				63313B1E2C40DCA20016C932 /* Classic.mp3 in Resources */,
 				7A11D0012E9F000000000004 /* Pop.m4a in Resources */,
 				7A11D0112E9F000000000004 /* Digital.m4a in Resources */,
 				7A11C0012E9F000000000003 /* Felt.m4a in Resources */,

@@ -51,5 +51,5 @@ The app ends up in `build/Build/Products/Release/kyklos.app`.
 ## License
 
 kyklos is licensed under the GNU General Public License v3.0. It still contains parts of Cloud (some code and the
-"Cloud" alarm sound), which is licensed under the same terms; those parts are © David. The other alarm sounds
+"Classic" alarm sound), which is licensed under the same terms; those parts are © David. The other alarm sounds
 are synthesized by `tools/alarm-sounds.swift`.
