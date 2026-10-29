@@ -80,7 +80,8 @@ The app ends up in `build/Build/Products/Release/kyklos.app`.
 
 ## Support
 
-kyklos is free and will stay free. If it helps you, you can [buy me a coffee on Ko-fi](https://ko-fi.com/yiorgosp).
+I made kyklos for my own wandering mind, and it's free and will stay free. If it helps yours too, please consider
+[buying me a coffee on Ko-fi](https://ko-fi.com/yiorgosp).
 
 ## License
 
