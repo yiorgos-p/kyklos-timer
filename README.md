@@ -1,7 +1,7 @@
 # kyklos
 
-kyklos (KEE-klos, Greek for both *circle* and *cycle*) is a free, minimal Pomodoro timer for macOS, in its own window and in the menu bar. It is built to keep a
-wandering mind on one thing at a time.
+kyklos (KEE-klos, Greek for both *circle* and *cycle*) is a free, minimal Pomodoro timer for macOS, in its own window and in the menu bar. It's designed with
+ADHD in mind, to keep a wandering mind on one thing at a time.
 
 kyklos started as a fork of [Cloud](https://github.com/YYUUGGOO/Cloud) by David and has since been almost entirely rewritten.
 
@@ -11,6 +11,17 @@ kyklos started as a fork of [Cloud](https://github.com/YYUUGGOO/Cloud) by David 
     <img src=".github/screenshot-light.png" width="360" alt="kyklos during a focus session: a dial with a blue arc and 36:21 left, the task &quot;Working on a school project&quot;, and Pause and Reset buttons">
   </picture>
 </p>
+
+## Designed for ADHD
+
+- **Time you can see.** The time left is a shrinking arc, not just numbers, with the time the session ends below it,
+  so time doesn't quietly slip away.
+- **One thing at a time.** You write down what you're working on, and it stays in view in the window and the menu
+  bar, so a quick detour is easy to notice.
+- **Hard to miss, easy to restart.** If you're deep in something when time runs out, the alarm rings again every
+  minute and the timer shows how far over you've gone. The next phase is one click away.
+- **No distractions.** No accounts, streaks or charts to keep up with. Zen Mode and Minimal Mode strip it down
+  further, and there are low, soft alarm sounds for sensitive ears.
 
 ## Features
 
